@@ -1,5 +1,6 @@
 package upce.fei.garden.dto.proposal;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -11,7 +12,7 @@ import java.time.LocalDateTime;
 /**
  * Přehledová karta návrhu – informace o zahradníkovi, cena a stav návrhu.
  */
-
+@Schema(description = "Přehledová karta návrhu zahradníka na poptávku")
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor

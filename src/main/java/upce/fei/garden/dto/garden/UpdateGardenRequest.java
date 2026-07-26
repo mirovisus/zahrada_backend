@@ -1,5 +1,6 @@
 package upce.fei.garden.dto.garden;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -9,7 +10,7 @@ import lombok.NoArgsConstructor;
 /**
  * Aktualizace zahrady – všechna pole jsou povinná.
  */
-
+@Schema(description = "Aktualizace zahrady - všechna pole se zapisují znovu, žádné není volitelné")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -19,6 +20,7 @@ public class UpdateGardenRequest {
     @Size(max = 100, message = "Název nesmí překročit 100 znaků")
     private String gardenName;
 
+    @Schema(description = "Plocha zahrady v metrech čtverečních")
     @NotNull(message = "Plocha zahrady je povinná")
     @Positive(message = "Plocha musí být kladné číslo")
     private Double areaSqm; // plocha zahrady

@@ -1,5 +1,6 @@
 package upce.fei.garden.dto.demand;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -10,7 +11,7 @@ import java.time.LocalDate;
 /**
  * Přehledová karta poptávky – název zahrady, stav a zkrácený popis.
  */
-
+@Schema(description = "Přehledová karta poptávky - používá se v seznamu poptávek vlastníka i ve veřejném katalogu")
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor

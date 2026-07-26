@@ -39,7 +39,8 @@ public class GardenController {
 
     @Operation(summary = "Detail zahrady podle id")
     @GetMapping("/{id}")
-    public ResponseEntity<GardenDetailResponse> getById(@PathVariable Long id) {
+    public ResponseEntity<GardenDetailResponse> getById(
+            @Parameter(description = "Id zahrady") @PathVariable Long id) {
         return ResponseEntity.ok(gardenService.getById(id));
     }
 
@@ -52,14 +53,15 @@ public class GardenController {
 
     @Operation(summary = "Aktualizace zahrady")
     @PutMapping("/{id}")
-    public ResponseEntity<GardenDetailResponse> update(@PathVariable Long id,
-                                                         @Valid @RequestBody UpdateGardenRequest request) {
+    public ResponseEntity<GardenDetailResponse> update(
+            @Parameter(description = "Id zahrady") @PathVariable Long id,
+            @Valid @RequestBody UpdateGardenRequest request) {
         return ResponseEntity.ok(gardenService.update(id, request));
     }
 
     @Operation(summary = "Smazání zahrady")
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    public ResponseEntity<Void> delete(@Parameter(description = "Id zahrady") @PathVariable Long id) {
         gardenService.delete(id);
         return ResponseEntity.noContent().build();
     }

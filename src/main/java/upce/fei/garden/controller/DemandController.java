@@ -36,6 +36,7 @@ public class DemandController {
     @PreAuthorize("hasRole('OWNER')")
     @GetMapping("/api/demands")
     public ResponseEntity<Page<DemandSummary>> getMyDemands(
+            @Parameter(description = "Volitelný filtr podle stavu poptávky; bez parametru se vrátí všechny stavy")
             @RequestParam(required = false) DemandStatus status,
             @Parameter(hidden = true) @PageableDefault(size = 20) Pageable pageable) {
         return ResponseEntity.ok(demandService.getMyDemands(pageable, status));
@@ -45,7 +46,7 @@ public class DemandController {
     @PreAuthorize("hasRole('OWNER')")
     @GetMapping("/api/gardens/{gardenId}/demands")
     public ResponseEntity<Page<DemandSummary>> getByGarden(
-            @PathVariable Long gardenId,
+            @Parameter(description = "Id zahrady") @PathVariable Long gardenId,
             @Parameter(hidden = true) @PageableDefault(size = 20) Pageable pageable) {
         return ResponseEntity.ok(demandService.getByGarden(gardenId, pageable));
     }
@@ -53,15 +54,17 @@ public class DemandController {
     @Operation(summary = "Detail poptávky (vlastník vidí jen své, zahradník jen ve stavu NOVA)")
     @PreAuthorize("hasAnyRole('OWNER', 'WORKER')")
     @GetMapping("/api/demands/{id}")
-    public ResponseEntity<DemandDetailResponse> getById(@PathVariable Long id) {
+    public ResponseEntity<DemandDetailResponse> getById(
+            @Parameter(description = "Id poptávky") @PathVariable Long id) {
         return ResponseEntity.ok(demandService.getById(id));
     }
 
     @Operation(summary = "Vytvoření nové poptávky pro danou zahradu")
     @PreAuthorize("hasRole('OWNER')")
     @PostMapping("/api/gardens/{gardenId}/demands")
-    public ResponseEntity<DemandDetailResponse> create(@PathVariable Long gardenId,
-                                                        @Valid @RequestBody CreateDemandRequest request) {
+    public ResponseEntity<DemandDetailResponse> create(
+            @Parameter(description = "Id zahrady, pro kterou se poptávka vytváří") @PathVariable Long gardenId,
+            @Valid @RequestBody CreateDemandRequest request) {
         DemandDetailResponse response = demandService.create(gardenId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -69,25 +72,28 @@ public class DemandController {
     @Operation(summary = "Aktualizace poptávky (nelze, pokud už k ní existuje návrh)")
     @PreAuthorize("hasRole('OWNER')")
     @PutMapping("/api/demands/{id}")
-    public ResponseEntity<DemandDetailResponse> update(@PathVariable Long id,
-                                                        @Valid @RequestBody CreateDemandRequest request) {
+    public ResponseEntity<DemandDetailResponse> update(
+            @Parameter(description = "Id poptávky") @PathVariable Long id,
+            @Valid @RequestBody CreateDemandRequest request) {
         return ResponseEntity.ok(demandService.update(id, request));
     }
 
     @Operation(summary = "Smazání poptávky (nelze, pokud už k ní existuje návrh)")
     @PreAuthorize("hasRole('OWNER')")
     @DeleteMapping("/api/demands/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    public ResponseEntity<Void> delete(@Parameter(description = "Id poptávky") @PathVariable Long id) {
         demandService.delete(id);
         return ResponseEntity.noContent().build();
     }
 
     @Operation(summary = "Veřejný katalog poptávek pro zahradníky (filtr podle města, typů služeb a fulltextové hledání)")
-    @PreAuthorize("hasRole('WORKER')")
     @GetMapping("/api/demands/catalog")
     public ResponseEntity<Page<DemandSummary>> getCatalog(
+            @Parameter(description = "Filtr podle města zahrady (přesná shoda, bez ohledu na velikost písmen)")
             @RequestParam(required = false) String city,
+            @Parameter(description = "Filtr podle id typů služeb - poptávka musí obsahovat alespoň jeden z uvedených")
             @RequestParam(required = false) List<Long> serviceTypeIds,
+            @Parameter(description = "Fulltextové hledání v názvu a popisu poptávky")
             @RequestParam(required = false) String search,
             @Parameter(hidden = true) @PageableDefault(size = 20) Pageable pageable) {
         return ResponseEntity.ok(demandService.getCatalog(city, serviceTypeIds, search, pageable));

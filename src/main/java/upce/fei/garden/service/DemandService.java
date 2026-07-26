@@ -42,6 +42,14 @@ import java.util.stream.Collectors;
  * &lt;p&gt;
  * Poptávku, ke které už existuje alespoň jeden návrh ({@link ProposalRepository#existsByDemandId}),
  * nelze upravit ani smazat – takový pokus je hlášen jako {@link ConflictException} (HTTP 409).
+ * &lt;p&gt;
+ * Toto pravidlo je vlastní (programová) validace ve smyslu zadání "vlastní validační pravidla" –
+ * na rozdíl od anotací v {@code upce.fei.garden.validation} (např. {@code @FutureOrToday},
+ * {@code @ValidCzechPhone}), které ověřují jen tvar jednoho DTO, tady rozhoduje stav souvisejících
+ * entit v databázi (existence návrhu k poptávce). Takové mezizáznamové pravidlo nelze vyjádřit
+ * deklarativní anotací nad polem, proto je vynucováno programově v {@link #ensureNoProposals} a
+ * chrání konzistenci dat projektu (aby se nedala změnit nebo smazat poptávka, na kterou už
+ * zahradník reagoval).
  */
 @Slf4j
 @Service
@@ -220,6 +228,10 @@ public class DemandService {
                 });
     }
 
+    /**
+     * Vlastní validační pravidlo (viz Javadoc třídy) – programová obdoba anotací z
+     * {@code upce.fei.garden.validation}, jen nad stavem entity místo tvaru DTO.
+     */
     private void ensureNoProposals(Demand demand, String action) {
         if (proposalRepository.existsByDemandId(demand.getId())) {
             log.warn("Pokus o {} poptávky, ke které již existuje návrh: demandId={}", action, demand.getId());

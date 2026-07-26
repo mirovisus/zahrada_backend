@@ -1,5 +1,6 @@
 package upce.fei.garden.dto.garden;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -7,7 +8,7 @@ import lombok.NoArgsConstructor;
 /**
  * Detail zahrady – všechna data pro zobrazení a úpravu formuláře.
  */
-
+@Schema(description = "Detail zahrady vlastníka")
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
