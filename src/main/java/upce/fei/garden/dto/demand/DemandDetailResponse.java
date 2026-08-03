@@ -6,8 +6,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import upce.fei.garden.dto.dashboard.GardenSummary;
 import upce.fei.garden.model.enums.DemandStatus;
+import upce.fei.garden.model.enums.DemandUrgency;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -22,7 +22,11 @@ public class DemandDetailResponse {
     private Long id;
     private String title;
     private String description;
-    private LocalDate desiredDate;
+    private DemandUrgency urgency;
+
+    @Schema(description = "Čitelný český popis naléhavosti, pro přímé zobrazení na frontendu")
+    private String urgencyLabel;
+
     private LocalDateTime createdAt;
     private DemandStatus status;
     private List<String> serviceTypeNames;

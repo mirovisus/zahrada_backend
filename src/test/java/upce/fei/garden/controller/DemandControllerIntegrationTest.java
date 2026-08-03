@@ -9,7 +9,6 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.time.LocalDate;
 import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -88,15 +87,15 @@ class DemandControllerIntegrationTest {
         return objectMapper.readTree(response).get(0).get("id").asLong();
     }
 
-    private String demandRequestJson(long serviceTypeId, String desiredDate) {
+    private String demandRequestJson(long serviceTypeId, String urgency) {
         return """
                 {
                   "title": "Poptávka",
                   "serviceTypeIds": [%d],
                   "description": "Popis",
-                  "desiredDate": "%s"
+                  "urgency": "%s"
                 }
-                """.formatted(serviceTypeId, desiredDate);
+                """.formatted(serviceTypeId, urgency);
     }
 
     @Test
@@ -108,10 +107,12 @@ class DemandControllerIntegrationTest {
         mockMvc.perform(post("/api/gardens/{gardenId}/demands", gardenId)
                         .header("Authorization", "Bearer " + ownerToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(demandRequestJson(serviceTypeId, LocalDate.now().plusDays(5).toString())))
+                        .content(demandRequestJson(serviceTypeId, "DO_TYDNE")))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.title").value("Poptávka"))
-                .andExpect(jsonPath("$.status").value("NOVA"));
+                .andExpect(jsonPath("$.status").value("NOVA"))
+                .andExpect(jsonPath("$.urgency").value("DO_TYDNE"))
+                .andExpect(jsonPath("$.urgencyLabel").value("Do týdne"));
     }
 
     @Test
@@ -121,7 +122,7 @@ class DemandControllerIntegrationTest {
         mockMvc.perform(post("/api/gardens/{gardenId}/demands", 1L)
                         .header("Authorization", "Bearer " + workerToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(demandRequestJson(1L, LocalDate.now().plusDays(5).toString())))
+                        .content(demandRequestJson(1L, "DO_TYDNE")))
                 .andExpect(status().isForbidden());
     }
 
@@ -140,7 +141,7 @@ class DemandControllerIntegrationTest {
         String createResponse = mockMvc.perform(post("/api/gardens/{gardenId}/demands", gardenId)
                         .header("Authorization", "Bearer " + ownerToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(demandRequestJson(serviceTypeId, LocalDate.now().plusDays(5).toString())))
+                        .content(demandRequestJson(serviceTypeId, "DO_TYDNE")))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         long demandId = objectMapper.readTree(createResponse).get("id").asLong();
@@ -157,21 +158,29 @@ class DemandControllerIntegrationTest {
         mockMvc.perform(put("/api/demands/{demandId}", demandId)
                         .header("Authorization", "Bearer " + ownerToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(demandRequestJson(serviceTypeId, LocalDate.now().plusDays(10).toString())))
+                        .content(demandRequestJson(serviceTypeId, "DO_MESICE")))
                 .andExpect(status().isConflict());
     }
 
     @Test
-    void createDemand_withPastDate_returns400WithFieldErrors() throws Exception {
-        String ownerToken = registerAndGetToken("owner-pastdate", "OWNER");
+    void createDemand_withInvalidUrgency_returns400() throws Exception {
+        String ownerToken = registerAndGetToken("owner-badurgency", "OWNER");
         long gardenId = createGarden(ownerToken);
         long serviceTypeId = firstServiceTypeId();
 
         mockMvc.perform(post("/api/gardens/{gardenId}/demands", gardenId)
                         .header("Authorization", "Bearer " + ownerToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(demandRequestJson(serviceTypeId, LocalDate.now().minusDays(1).toString())))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.fieldErrors.desiredDate").exists());
+                        .content(demandRequestJson(serviceTypeId, "NEPLATNA_HODNOTA")))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void getUrgencies_withoutToken_returns200WithAllValues() throws Exception {
+        mockMvc.perform(get("/api/demands/urgencies"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(5))
+                .andExpect(jsonPath("$[0].id").exists())
+                .andExpect(jsonPath("$[0].label").exists());
     }
 }

@@ -16,6 +16,7 @@ import upce.fei.garden.dto.demand.CreateDemandRequest;
 import upce.fei.garden.dto.demand.DemandDetailResponse;
 import upce.fei.garden.dto.demand.DemandStatisticsResponse;
 import upce.fei.garden.dto.demand.DemandSummary;
+import upce.fei.garden.dto.demand.DemandUrgencyResponse;
 import upce.fei.garden.model.enums.DemandStatus;
 import upce.fei.garden.service.DemandService;
 
@@ -51,8 +52,7 @@ public class DemandController {
         return ResponseEntity.ok(demandService.getByGarden(gardenId, pageable));
     }
 
-    @Operation(summary = "Detail poptávky (vlastník vidí jen své, zahradník jen ve stavu NOVA)")
-    @PreAuthorize("hasAnyRole('OWNER', 'WORKER')")
+    @Operation(summary = "Detail poptávky (veřejný pro stav NOVA; vlastník navíc vidí i své poptávky v jiných stavech)")
     @GetMapping("/api/demands/{id}")
     public ResponseEntity<DemandDetailResponse> getById(
             @Parameter(description = "Id poptávky") @PathVariable Long id) {
@@ -104,5 +104,11 @@ public class DemandController {
     @GetMapping("/api/demands/statistics")
     public ResponseEntity<List<DemandStatisticsResponse>> getStatistics() {
         return ResponseEntity.ok(demandService.getMyDemandsWithProposalCount());
+    }
+
+    @Operation(summary = "Číselník hodnot naléhavosti realizace poptávky")
+    @GetMapping("/api/demands/urgencies")
+    public ResponseEntity<List<DemandUrgencyResponse>> getUrgencies() {
+        return ResponseEntity.ok(demandService.getUrgencies());
     }
 }

@@ -18,6 +18,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class ProposalSummary {
     private Long id;
+    private Long demandId;
     private String workerFirstName;
     private String workerLastName;
     private String workerAvatarUrl;

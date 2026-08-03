@@ -1,6 +1,5 @@
 package upce.fei.garden.model;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -9,6 +8,7 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import upce.fei.garden.model.enums.DemandStatus;
+import upce.fei.garden.model.enums.DemandUrgency;
 
 /**
  * Poptávka – požadavek zákazníka na úpravu zahrady.
@@ -41,7 +41,9 @@ public class Demand {
 
     private String description;
 
-    private LocalDate desiredDate;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private DemandUrgency urgency;
 
     @Enumerated(EnumType.STRING)
     private DemandStatus status = DemandStatus.NOVA;

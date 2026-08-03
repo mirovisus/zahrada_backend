@@ -33,7 +33,9 @@ public class SecurityConfig {
     private static final String[] PUBLIC_PATHS = {
             "/api/auth/**",
             "/api/demands/catalog",
+            "/api/demands/urgencies",
             "/api/service-types",
+            "/uploads/**",
             "/swagger-ui/**",
             "/v3/api-docs/**",
             "/h2-console/**",
@@ -70,6 +72,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(PUBLIC_PATHS).permitAll()
+                        // Detail poptávky je veřejný jen ve stavu NOVA - viditelnost dál řeší DemandService#getById;
+                        // omezeno na číselné id, aby vzorec nezasáhl neveřejné /api/demands/statistics apod.
+                        .requestMatchers(HttpMethod.GET, "/api/demands/{id:[0-9]+}").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(exceptionHandling -> exceptionHandling
                         .authenticationEntryPoint(jwtAuthenticationEntryPoint))

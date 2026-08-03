@@ -12,6 +12,7 @@ import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -90,6 +91,15 @@ public class GlobalExceptionHandler {
         String message = "HTTP metoda '" + ex.getMethod() + "' není pro tuto cestu podporována.";
         logExpected(HttpStatus.METHOD_NOT_ALLOWED, request, message);
         return buildResponse(HttpStatus.METHOD_NOT_ALLOWED, message, request, null);
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiError> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException ex,
+                                                                  HttpServletRequest request) {
+        // multipart parser odmitne prilis velky soubor drive, nez se dostane k FileStorageService#store
+        String message = "Nahrávaný soubor je příliš velký.";
+        logExpected(HttpStatus.BAD_REQUEST, request, message);
+        return buildResponse(HttpStatus.BAD_REQUEST, message, request, null);
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)

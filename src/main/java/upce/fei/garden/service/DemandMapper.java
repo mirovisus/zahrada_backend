@@ -30,7 +30,7 @@ final class DemandMapper {
         demand.setGarden(garden);
         demand.setTitle(request.getTitle());
         demand.setDescription(request.getDescription());
-        demand.setDesiredDate(request.getDesiredDate());
+        demand.setUrgency(request.getUrgency());
         demand.setServiceTypes(serviceTypes);
         demand.setStatus(DemandStatus.NOVA);
         return demand;
@@ -39,7 +39,7 @@ final class DemandMapper {
     static void updateEntity(Demand demand, CreateDemandRequest request, List<ServiceType> serviceTypes) {
         demand.setTitle(request.getTitle());
         demand.setDescription(request.getDescription());
-        demand.setDesiredDate(request.getDesiredDate());
+        demand.setUrgency(request.getUrgency());
         demand.setServiceTypes(serviceTypes);
     }
 
@@ -49,7 +49,8 @@ final class DemandMapper {
                 demand.getId(),
                 garden != null ? garden.getGardenName() : null,
                 previewOf(demand.getDescription()),
-                demand.getDesiredDate(),
+                demand.getUrgency(),
+                demand.getUrgency() != null ? demand.getUrgency().getLabel() : null,
                 demand.getStatus());
     }
 
@@ -58,7 +59,8 @@ final class DemandMapper {
                 demand.getId(),
                 demand.getTitle(),
                 demand.getDescription(),
-                demand.getDesiredDate(),
+                demand.getUrgency(),
+                demand.getUrgency() != null ? demand.getUrgency().getLabel() : null,
                 demand.getCreatedAt(),
                 demand.getStatus(),
                 demand.getServiceTypes().stream().map(ServiceType::getName).toList(),

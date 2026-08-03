@@ -43,6 +43,4 @@ public class UpdateGardenRequest {
     @NotBlank(message = "PSČ je povinné")
     @Pattern(regexp = "^\\d{3}\\s?\\d{2}$", message = "PSČ musí mít formát 5 číslic, volitelně oddělených mezerou (např. 53003 nebo 530 03)")
     private String postalCode;
-
-    private String mainPhotoUrl; // TODO: implementovat nahrávání souborů
 }

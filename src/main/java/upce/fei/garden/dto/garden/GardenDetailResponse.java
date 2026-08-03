@@ -23,5 +23,5 @@ public class GardenDetailResponse {
     private String street;
     private String houseNumber;
     private String postalCode;
-    private String mainPhotoUrl; // TODO: implementovat nahrávání souborů
+    private String mainPhotoUrl;
 }

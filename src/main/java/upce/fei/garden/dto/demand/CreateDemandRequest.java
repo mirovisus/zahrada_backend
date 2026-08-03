@@ -9,9 +9,8 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import upce.fei.garden.validation.rules.FutureOrToday;
+import upce.fei.garden.model.enums.DemandUrgency;
 
-import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -34,8 +33,7 @@ public class CreateDemandRequest {
     @Size(max = 2000, message = "Popis nesmí překročit 2000 znaků")
     private String description;
 
-    @Schema(description = "Požadované datum realizace - nesmí být v minulosti", example = "2026-06-01")
-    @NotNull(message = "Požadované datum realizace je povinné")
-    @FutureOrToday(message = "Požadované datum realizace nesmí být v minulosti")
-    private LocalDate desiredDate;
+    @Schema(description = "Naléhavost realizace, hodnoty viz /api/demands/urgencies")
+    @NotNull(message = "Naléhavost realizace je povinná")
+    private DemandUrgency urgency;
 }

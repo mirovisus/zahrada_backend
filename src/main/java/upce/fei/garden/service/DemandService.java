@@ -11,6 +11,7 @@ import upce.fei.garden.dto.demand.CreateDemandRequest;
 import upce.fei.garden.dto.demand.DemandDetailResponse;
 import upce.fei.garden.dto.demand.DemandStatisticsResponse;
 import upce.fei.garden.dto.demand.DemandSummary;
+import upce.fei.garden.dto.demand.DemandUrgencyResponse;
 import upce.fei.garden.exception.ConflictException;
 import upce.fei.garden.exception.NotFoundException;
 import upce.fei.garden.exception.ValidationException;
@@ -21,12 +22,14 @@ import upce.fei.garden.model.ServiceType;
 import upce.fei.garden.model.User;
 import upce.fei.garden.model.Worker;
 import upce.fei.garden.model.enums.DemandStatus;
+import upce.fei.garden.model.enums.DemandUrgency;
 import upce.fei.garden.repository.DemandRepository;
 import upce.fei.garden.repository.GardenRepository;
 import upce.fei.garden.repository.ProposalRepository;
 import upce.fei.garden.repository.ServiceTypeRepository;
 import upce.fei.garden.security.CurrentUserService;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -89,27 +92,42 @@ public class DemandService {
     }
 
     /**
-     * Vrátí detail poptávky podle id. Vlastník vidí pouze poptávky svých zahrad, zahradník
-     * smí zobrazit libovolnou poptávku, ale pouze pokud je ve stavu {@link DemandStatus#NOVA}
-     * (tedy je součástí veřejného katalogu) – ostatní stavy pro něj nejsou relevantní a jejich
-     * existenci mu nechceme prozrazovat.
+     * Vrátí detail poptávky podle id. Vlastník vidí pouze poptávky svých zahrad (v libovolném
+     * stavu). Zahradník smí zobrazit poptávku, pokud je ve stavu {@link DemandStatus#NOVA}
+     * (je součástí veřejného katalogu), nebo pokud na ni sám podal návrh ({@link
+     * ProposalRepository#existsByDemandIdAndWorkerId}) – jinak by si po přijetí/zamítnutí svého
+     * návrhu nemohl otevřít detail poptávky, ke které se návrh vztahuje. Anonymní návštěvník
+     * vidí pouze stav {@link DemandStatus#NOVA} – ostatní stavy pro něj nejsou relevantní a
+     * jejich existenci mu nechceme prozrazovat. Endpoint je proto veřejný ({@code permitAll}
+     * v {@code SecurityConfig}) a přihlášení se ověřuje jen volitelně přes {@link
+     * CurrentUserService#getCurrentUserOrNull()}, aby request bez tokenu neselhal na chybějící
+     * autentizaci.
      *
-     * @throws NotFoundException pokud poptávka neexistuje nebo k ní přihlášený uživatel nemá přístup
+     * @throws NotFoundException pokud poptávka neexistuje nebo k ní přihlášený/anonymní uživatel nemá přístup
      */
     @Transactional(readOnly = true)
     public DemandDetailResponse getById(Long id) {
-        User user = currentUserService.getCurrentUser();
+        User user = currentUserService.getCurrentUserOrNull();
         Demand demand = demandRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Poptávka s id " + id + " nebyla nalezena."));
 
-        if (user instanceof Owner owner && !demand.getGarden().getOwner().getId().equals(owner.getId())) {
-            log.warn("Pokus o přístup k cizí poptávce: demandId={}, ownerId={}", id, owner.getId());
-            throw new NotFoundException("Poptávka s id " + id + " nebyla nalezena.");
-        }
-        if (user instanceof Worker worker && demand.getStatus() != DemandStatus.NOVA) {
-            log.warn("Pokus zahradníka o přístup k nedostupné poptávce: demandId={}, workerId={}, status={}",
-                    id, worker.getId(), demand.getStatus());
-            throw new NotFoundException("Poptávka s id " + id + " nebyla nalezena.");
+        if (user instanceof Owner owner) {
+            if (!demand.getGarden().getOwner().getId().equals(owner.getId())) {
+                log.warn("Pokus o přístup k cizí poptávce: demandId={}, ownerId={}", id, owner.getId());
+                throw new NotFoundException("Poptávka s id " + id + " nebyla nalezena.");
+            }
+        } else if (demand.getStatus() != DemandStatus.NOVA) {
+            if (user instanceof Worker worker) {
+                if (!proposalRepository.existsByDemandIdAndWorkerId(id, worker.getId())) {
+                    log.warn("Pokus zahradníka o přístup k nedostupné poptávce: demandId={}, workerId={}, status={}",
+                            id, worker.getId(), demand.getStatus());
+                    throw new NotFoundException("Poptávka s id " + id + " nebyla nalezena.");
+                }
+            } else {
+                log.warn("Pokus o anonymní přístup k nedostupné poptávce: demandId={}, status={}",
+                        id, demand.getStatus());
+                throw new NotFoundException("Poptávka s id " + id + " nebyla nalezena.");
+            }
         }
 
         boolean hasProposals = proposalRepository.existsByDemandId(id);
@@ -208,6 +226,16 @@ public class DemandService {
         Owner owner = currentUserService.getCurrentOwner();
         return demandRepository.findDemandsWithProposalCountByOwnerId(owner.getId()).stream()
                 .map(DemandMapper::toStatistics)
+                .toList();
+    }
+
+    /**
+     * Vrátí číselník hodnot naléhavosti realizace poptávky ({@link DemandUrgency}) pro formuláře
+     * na frontendu a filtraci veřejného katalogu.
+     */
+    public List<DemandUrgencyResponse> getUrgencies() {
+        return Arrays.stream(DemandUrgency.values())
+                .map(urgency -> new DemandUrgencyResponse(urgency.name(), urgency.getLabel()))
                 .toList();
     }
 

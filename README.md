@@ -238,7 +238,6 @@ anotace, `validation/validator` - implementace `ConstraintValidator`):
 
 | Anotace | Kde se používá | Pravidlo |
 |---------|-----------------|----------|
-| `@FutureOrToday` | `CreateDemandRequest.desiredDate` | Datum nesmí ležet v minulosti (dnešek i budoucnost jsou platné). |
 | `@ValidCzechPhone` | `UpdateOwnerProfileRequest.phoneNumber`, `UpdateWorkerProfileRequest.phoneNumber` | Formát `+420` a devět číslic, mezery volitelné; `null`/prázdný řetězec je platný (telefon je nepovinný). |
 
 Obě chyby se vrací jako HTTP 400 s `fieldErrors` mapou (název pole → chybová zpráva), stejně

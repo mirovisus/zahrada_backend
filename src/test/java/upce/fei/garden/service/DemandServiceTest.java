@@ -16,13 +16,13 @@ import upce.fei.garden.model.Garden;
 import upce.fei.garden.model.Owner;
 import upce.fei.garden.model.ServiceType;
 import upce.fei.garden.model.enums.DemandStatus;
+import upce.fei.garden.model.enums.DemandUrgency;
 import upce.fei.garden.repository.DemandRepository;
 import upce.fei.garden.repository.GardenRepository;
 import upce.fei.garden.repository.ProposalRepository;
 import upce.fei.garden.repository.ServiceTypeRepository;
 import upce.fei.garden.security.CurrentUserService;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -79,7 +79,7 @@ class DemandServiceTest {
     }
 
     private CreateDemandRequest validRequest() {
-        return new CreateDemandRequest("Posekat trávník", List.of(5L), "Popis", LocalDate.now().plusDays(1));
+        return new CreateDemandRequest("Posekat trávník", List.of(5L), "Popis", DemandUrgency.DO_TYDNE);
     }
 
     // --- create ---
@@ -147,7 +147,7 @@ class DemandServiceTest {
         when(demandRepository.save(any(Demand.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         CreateDemandRequest updateRequest =
-                new CreateDemandRequest("Novy nazev", List.of(5L), "Novy popis", LocalDate.now().plusDays(2));
+                new CreateDemandRequest("Novy nazev", List.of(5L), "Novy popis", DemandUrgency.DO_MESICE);
 
         DemandDetailResponse response = demandService.update(50L, updateRequest);
 

@@ -33,6 +33,20 @@ public class CurrentUserService {
     }
 
     /**
+     * Vrátí aktuálně přihlášeného uživatele, nebo {@code null}, pokud request není autentizovaný.
+     * Na rozdíl od {@link #getCurrentUser()} nevyhazuje výjimku – použije se na endpointech
+     * přístupných i anonymně, kde autentizace mění jen viditelnost dat, nikoliv to, zda je
+     * požadavek vůbec povolen.
+     */
+    public User getCurrentUserOrNull() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal principal)) {
+            return null;
+        }
+        return principal.getUser();
+    }
+
+    /**
      * Vrátí aktuálně přihlášeného uživatele jako {@link Owner}.
      *
      * @throws ForbiddenException pokud přihlášený uživatel není vlastník zahrady

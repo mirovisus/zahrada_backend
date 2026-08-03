@@ -31,7 +31,9 @@ final class GardenMapper {
         garden.setAreaSqm(request.getAreaSqm());
         garden.setAddress(new Address(request.getCity(), request.getStreet(), request.getHouseNumber(),
                 request.getPostalCode()));
-        garden.setMainPhotoUrl(request.getMainPhotoUrl());
+        // mainPhotoUrl se zde neupravuje - spravuje ho vyhradne FileStorageService pres
+        // GardenController#uploadPhoto/deletePhoto, aby fotografii nešlo nastavit na libovolnou
+        // nevalidovanou hodnotu a aby ji běžná úprava zahrady nepřepsala na null
     }
 
     static GardenDetailResponse toResponse(Garden garden) {

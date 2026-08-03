@@ -30,6 +30,7 @@ final class ProposalMapper {
         Worker worker = proposal.getWorker();
         return new ProposalSummary(
                 proposal.getId(),
+                proposal.getDemand().getId(),
                 worker != null ? worker.getFirstName() : null,
                 worker != null ? worker.getLastName() : null,
                 worker != null ? worker.getAvatarUrl() : null,

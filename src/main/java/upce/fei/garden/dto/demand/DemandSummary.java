@@ -5,8 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import upce.fei.garden.model.enums.DemandStatus;
-
-import java.time.LocalDate;
+import upce.fei.garden.model.enums.DemandUrgency;
 
 /**
  * Přehledová karta poptávky – název zahrady, stav a zkrácený popis.
@@ -19,7 +18,11 @@ public class DemandSummary {
     private Long id;
     private String gardenName;
     private String descriptionPreview;
-    private LocalDate desiredDate;
+    private DemandUrgency urgency;
+
+    @Schema(description = "Čitelný český popis naléhavosti, pro přímé zobrazení na frontendu")
+    private String urgencyLabel;
+
     private DemandStatus status;
     // TODO: int proposalCount
 }

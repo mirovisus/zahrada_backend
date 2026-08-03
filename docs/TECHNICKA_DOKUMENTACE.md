@@ -157,7 +157,9 @@ Aplikace kombinuje tři úrovně validace:
    na request DTO, vyhodnocované automaticky přes `@Valid` v controlleru.
 2. **Vlastní deklarativní pravidla** (balíček `validation`, dělený na `validation.rules` -
    anotace a `validation.validator` - implementace `ConstraintValidator`):
-   - `@FutureOrToday` - datum nesmí ležet v minulosti (použito na `desiredDate` poptávky).
+   - `@FutureOrToday` - datum nesmí ležet v minulosti (obecné pravidlo pro `LocalDate` pole,
+     aktuálně bez aktivního použití - naléhavost poptávky se od zavedení `DemandUrgency` vybírá
+     z pevného číselníku, nikoli konkrétním datem).
    - `@ValidCzechPhone` - telefon ve formátu `+420` a devět číslic (mezery volitelné), `null`
      nebo prázdný řetězec je platný, protože telefon je nepovinný údaj.
 

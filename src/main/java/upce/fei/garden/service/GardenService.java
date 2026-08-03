@@ -6,6 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import upce.fei.garden.dto.garden.CreateGardenRequest;
 import upce.fei.garden.dto.garden.GardenDetailResponse;
 import upce.fei.garden.dto.garden.UpdateGardenRequest;
@@ -30,6 +31,7 @@ public class GardenService {
 
     private final GardenRepository gardenRepository;
     private final CurrentUserService currentUserService;
+    private final FileStorageService fileStorageService;
 
     /**
      * Vrátí stránkovaný seznam zahrad aktuálně přihlášeného vlastníka.
@@ -86,7 +88,8 @@ public class GardenService {
     }
 
     /**
-     * Smaže zahradu, pokud patří aktuálně přihlášenému vlastníkovi.
+     * Smaže zahradu, pokud patří aktuálně přihlášenému vlastníkovi. Spolu se zahradou smaže
+     * i soubor její fotografie (pokud existuje), jinak by v {@code app.upload.dir} zůstal osiřelý.
      *
      * @throws NotFoundException pokud zahrada neexistuje nebo nepatří přihlášenému vlastníkovi
      */
@@ -96,7 +99,52 @@ public class GardenService {
         Garden garden = findOwnedGarden(id, owner);
 
         gardenRepository.delete(garden);
+        fileStorageService.delete(garden.getMainPhotoUrl());
         log.info("Smazána zahrada: id={}, ownerId={}", id, owner.getId());
+    }
+
+    /**
+     * Nahraje (nebo nahradí) fotografii zahrady. Validace a sanitizace nahraného souboru
+     * (velikost, typ, skutečná signatura obsahu) je v {@link FileStorageService#store}. Starý
+     * soubor fotografie se smaže až po úspěšném uložení nového a zápisu do databáze, aby v případě
+     * chyby validace nepřišla zahrada o dosavadní fotografii.
+     *
+     * @throws NotFoundException   pokud zahrada neexistuje nebo nepatří přihlášenému vlastníkovi
+     * @throws upce.fei.garden.exception.ValidationException pokud nahraný soubor nesplní validaci
+     */
+    @Transactional
+    public GardenDetailResponse uploadPhoto(Long id, MultipartFile file) {
+        Owner owner = currentUserService.getCurrentOwner();
+        Garden garden = findOwnedGarden(id, owner);
+
+        String oldPhotoUrl = garden.getMainPhotoUrl();
+        String newPhotoUrl = fileStorageService.store(file);
+        garden.setMainPhotoUrl(newPhotoUrl);
+        Garden saved = gardenRepository.save(garden);
+
+        fileStorageService.delete(oldPhotoUrl);
+        log.info("Nahrána fotografie zahrady: id={}, ownerId={}", saved.getId(), owner.getId());
+
+        return GardenMapper.toResponse(saved);
+    }
+
+    /**
+     * Smaže fotografii zahrady (soubor i odkaz {@code mainPhotoUrl}), pokud zahrada patří
+     * aktuálně přihlášenému vlastníkovi. Pokud zahrada žádnou fotografii nemá, jde o no-op.
+     *
+     * @throws NotFoundException pokud zahrada neexistuje nebo nepatří přihlášenému vlastníkovi
+     */
+    @Transactional
+    public GardenDetailResponse deletePhoto(Long id) {
+        Owner owner = currentUserService.getCurrentOwner();
+        Garden garden = findOwnedGarden(id, owner);
+
+        fileStorageService.delete(garden.getMainPhotoUrl());
+        garden.setMainPhotoUrl(null);
+        Garden saved = gardenRepository.save(garden);
+        log.info("Smazána fotografie zahrady: id={}, ownerId={}", saved.getId(), owner.getId());
+
+        return GardenMapper.toResponse(saved);
     }
 
     private Garden findOwnedGarden(Long id, Owner owner) {

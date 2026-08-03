@@ -9,9 +9,11 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import upce.fei.garden.dto.garden.CreateGardenRequest;
 import upce.fei.garden.dto.garden.GardenDetailResponse;
 import upce.fei.garden.dto.garden.UpdateGardenRequest;
@@ -64,5 +66,20 @@ public class GardenController {
     public ResponseEntity<Void> delete(@Parameter(description = "Id zahrady") @PathVariable Long id) {
         gardenService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "Nahrání fotografie zahrady (nahradí předchozí, pokud existuje)")
+    @PostMapping(value = "/{id}/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<GardenDetailResponse> uploadPhoto(
+            @Parameter(description = "Id zahrady") @PathVariable Long id,
+            @Parameter(description = "Soubor fotografie (JPEG/PNG/WebP)") @RequestParam("file") MultipartFile file) {
+        return ResponseEntity.ok(gardenService.uploadPhoto(id, file));
+    }
+
+    @Operation(summary = "Smazání fotografie zahrady")
+    @DeleteMapping("/{id}/photo")
+    public ResponseEntity<GardenDetailResponse> deletePhoto(
+            @Parameter(description = "Id zahrady") @PathVariable Long id) {
+        return ResponseEntity.ok(gardenService.deletePhoto(id));
     }
 }
