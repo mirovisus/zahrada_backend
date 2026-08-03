@@ -169,6 +169,11 @@ Spuštění jedné třídy nebo metody:
 > Třídy testů musí končit na `Test`/`Tests`, ne na `IT` - Maven Surefire (spouštěný fází `test`)
 > jinak takové testy přeskočí.
 
+## TODO / budoucí úpravy
+
+- Zkontrolovat, zda je vlastní validátor `@FutureOrToday` a jeho implementace mrtvý kód. Pokud
+  není nikde použit, odstranit jej a všechny odkazy na něj v projektu.
+
 ## Technická dokumentace
 
 Podrobný popis architektury, bezpečnostního modelu, validace, zpracování chyb a testovací
