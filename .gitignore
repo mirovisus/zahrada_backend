@@ -20,6 +20,10 @@ target/
 *.iml
 *.ipr
 
+### Claude Code ###
+.claude/
+CLAUDE.md
+
 ### NetBeans ###
 /nbproject/private/
 /nbbuild/
