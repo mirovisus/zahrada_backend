@@ -154,7 +154,7 @@ a `@PreAuthorize` na controlleru.
 - Přístup k cizímu záznamu vrací `404` místo `403`, aby se neprozradila existence daného záznamu.
 - Hesla se ukládají jako BCrypt hash a JWT je bezstavové a má omezenou platnost.
 - CORS je povolen jen pro frontend na `http://localhost:5173`.
-- Nahrané fotografie se kontrolují před uložením — zkoumá se jejich typ i obsah, aby se zabránilo
+- Nahrané fotografie se kontrolují před uložením - zkoumá se jejich typ i obsah, aby se zabránilo
   zneužití typu uploadu nebo path traversal.
 - `/actuator/health` je veřejný, ostatní actuator endpointy vyžadují autentizaci.
 
@@ -168,12 +168,12 @@ Aplikace kombinuje tři úrovně validace:
    anotace a `validation.validator` - implementace `ConstraintValidator`):
    - `@ValidCzechPhone` - telefon ve formátu `+420` a devět číslic (mezery volitelné), `null`
      nebo prázdný řetězec je platný, protože telefon je nepovinný údaj.
-
-   Obě chyby se vrací jako HTTP 400 s mapou `fieldErrors` (název pole -> chybová zpráva), stejně
-   jako standardní Bean Validation chyby.
+     
 3. **Programová (business) validace** - pravidla, která závisí na stavu souvisejících záznamů
    v databázi nebo na obsahu binárních dat, ne jen na tvaru jednoho DTO, a proto je nelze
-   vyjádřit deklarativní anotací nad polem. Příklady: poptávku, ke které už existuje alespoň
+   vyjádřit deklarativní anotací nad polem. 
+   
+   Příklady: poptávku, ke které už existuje alespoň
    jeden návrh, nelze upravit ani smazat (`DemandService#ensureNoProposals`, HTTP 409); na
    poptávku mimo stav `NOVA` nelze podat návrh a jeden zahradník smí na poptávku podat jen jeden
    návrh (`ProposalService#create`); návrh lze přijmout/zamítnout/odvolat jen ve stavu `NOVY`
@@ -203,64 +203,25 @@ formát odpovědi `ApiError` (`timestamp`, `status`, `error`, `message`, `path`,
 | `HttpRequestMethodNotSupportedException` (nepodporovaná HTTP metoda na dané cestě) | 405 |
 | cokoliv jiné (`Exception`) | 500 |
 
-Rozdělení logování mezi jednotlivé handlery odráží, jestli jde o běžný, předvídatelný stav
-aplikace, nebo o skutečnou závadu: **očekávané** chyby (celý řádek tabulky kromě posledního) se
-logují na úrovni WARN jen se zprávou, bez stack trace - stack trace by tu byl jen šum, protože
-příčina (cizí záznam, špatný vstup, konflikt stavu) je vždy zjevná ze zprávy. Poslední řádek,
-neočekávaná chyba (500), se loguje na ERROR i s celým stack trace, protože jde o skutečnou
-závadu (bug, výpadek závislosti apod.), kterou je potřeba dohledat v kódu - bez stack trace by
-nebyla dohledatelná.
-
 ## 8. Logování a monitoring
 
-- Logování je přes SLF4J/Logback (výchozí v Spring Boot), aplikační logger `upce.fei.garden`
-  běží na úrovni `INFO`; pro ladění lze bez zásahu do kódu dočasně přepnout na `DEBUG` přes
-  systémovou vlastnost nebo proměnnou prostředí. SQL dotazy Hibernate jsou v `application.properties`
-  natrvalo na `DEBUG` (parametry vazeb dokonce na `TRACE`) - jde o vývojářské pohodlí (vidět
-  přesně, jaké SQL a s jakými parametry Hibernate generuje), ne o produkční nastavení.
-- Každá klíčová operace (registrace, přihlášení, vytvoření/úprava/smazání zahrady, poptávky nebo
-  fotografie, podání/přijetí/zamítnutí/odvolání návrhu) loguje na úrovni `INFO`. Porušení
-  oprávnění nebo business pravidla (přístup k cizímu záznamu, akce v neočekávaném stavu,
-  odmítnutý soubor při nahrávání apod.) loguje na úrovni `WARN`.
-- `GlobalExceptionHandler` odděluje očekávané a neočekávané chyby při logování - viz
-  [Zpracování chyb](#7-zpracování-chyb).
-- Vlastní `RequestLoggingFilter` loguje na `INFO` každý HTTP požadavek na `/api/**` - metodu,
-  cestu, výsledný stavový kód a dobu zpracování. Nikdy neloguje hlavičky ani tělo požadavku,
-  takže se do logu nemůže dostat heslo ani JWT token.
-- `/actuator/health` (veřejný, s detaily) a `/actuator/info` (pod tokenem) - viz
-  [Bezpečnost](#5-bezpečnost).
+- Aplikace používá SLF4J/Logback. Hlavní logger je `upce.fei.garden`.
+- Důležité akce se logují na úrovni `INFO` (registrace, vytvoření nebo změna dat, upload souboru,
+  přijetí nebo zamítnutí návrhu).
+- Neoprávněné akce nebo porušení pravidel se logují jako `WARN`.
+- `RequestLoggingFilter` zaznamenává každý request na `/api/**` s metodou, cestou, stavem a
+  dobou zpracování. Neukládá hlavičky ani tělo požadavku.
+- `/actuator/health` je veřejný a umožňuje jednoduché monitorování stavu aplikace.
 
 ## 9. Testovací strategie
 
-Testy jsou rozdělené na dvě úrovně a běží proti izolované in-memory H2 databázi (Spring profil
-`test`, `application-test.properties`), takže se nikdy nedotknou souborové databáze používané
-při běžném provozu aplikace - testy tak lze spouštět opakovaně a paralelně, aniž by si
-navzájem nebo s běžícím dev serverem sdílely data.
+Projekt má dvě vrstvy testů a používá izolovanou in-memory databázi v testovém profilu.
 
-- **Unit testy** (JUnit 5 + Mockito, bez Spring kontextu) testují business logiku jedné service
-  třídy izolovaně - repozitáře a `CurrentUserService` jsou nahrazené mock objekty. Pokrývají
-  úspěšné scénáře i očekávané výjimky (neexistující/cizí záznam, konflikt business pravidla,
-  neplatná vstupní data). Bez Spring kontextu běží řádově rychleji, takže se hodí na pokrytí
-  všech větví business logiky (i těch méně obvyklých), aniž by test suite byla pomalá.
-- **Integrační testy** (`@SpringBootTest` + `MockMvc`) běží nad reálným Spring kontextem a
-  reálnou (in-memory) databází. Autorizace se v nich neobchází - testovací uživatelé se
-  registrují přes skutečný `POST /api/auth/register` a v požadavcích se posílá skutečný vrácený
-  JWT token, stejně jako by to dělal reálný klient. Ověřují tak celý řetězec: HTTP -> Spring
-  Security -> controller -> service -> databáze -> HTTP odpověď, včetně správných stavových kódů
-  (201/403/409/400 s `fieldErrors` apod.) - tuto vrstvu unit testy záměrně nepokrývají, protože
-  by vyžadovala mockovat celý Spring Security řetězec.
-- Samostatný `GardenApplicationTests` je jednoduchý smoke test, který jen ověří, že se Spring
-  kontext s aktuální konfigurací vůbec nastartuje (chybějící bean, špatně zadaná vlastnost apod.
-  by test spadl hned, bez nutnosti ručně zkoušet spuštění aplikace).
-
-Třídy testů musí končit na `Test`/`Tests`, ne na `IT` - Maven Surefire (spouštěný fází `test`,
-kterou tento projekt používá) třídy s příponou `IT` přeskočí, protože jde o konvenci pluginu
-Failsafe pro fázi `integration-test`, kterou projekt nepoužívá. Kdyby integrační testy
-omylem skončily na `IT`, `./mvnw test` by je tiše přeskočilo a vypadalo by to, že prošly, i
-kdyby se vůbec nespustily.
-
-Spuštění celé sady a další detaily (jak spustit jednu třídu/metodu) jsou v `README.md`, sekce
-Testování.
+- **Unit testy** pokrývají business logiku service vrstvy. Testují hlavní scénáře i chyby.
+- **Integrační testy** ověřují celý tok přes HTTP, Spring Security, controller, service a databázi.
+- Kromě toho existuje jednoduchý smoke test, který ověřuje, že se aplikace správně spustí.
+- Testy jsou pojmenované podle konvence `*Test` nebo `*Tests`, aby je Maven spustil správně.
+- Podrobnosti o spuštění testů jsou v `README.md`.
 
 ## 10. Známá omezení
 
