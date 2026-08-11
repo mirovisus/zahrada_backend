@@ -1,11 +1,15 @@
 package upce.fei.garden.service;
 
 import upce.fei.garden.dto.proposal.CreateProposalRequest;
+import upce.fei.garden.dto.proposal.ProposalCommentSummary;
 import upce.fei.garden.dto.proposal.ProposalSummary;
 import upce.fei.garden.model.Demand;
 import upce.fei.garden.model.Proposal;
+import upce.fei.garden.model.ProposalComment;
 import upce.fei.garden.model.Worker;
 import upce.fei.garden.model.enums.ProposalStatus;
+
+import java.util.Comparator;
 
 /**
  * Převod mezi entitou {@link Proposal} a jejími DTO. Držen mimo {@link ProposalService},
@@ -26,6 +30,11 @@ final class ProposalMapper {
         return proposal;
     }
 
+    static void updateEntity(Proposal proposal, CreateProposalRequest request) {
+        proposal.setPrice(request.getPrice());
+        proposal.setDescription(request.getDescription());
+    }
+
     static ProposalSummary toSummary(Proposal proposal) {
         Worker worker = proposal.getWorker();
         return new ProposalSummary(
@@ -38,6 +47,10 @@ final class ProposalMapper {
                 proposal.getDescription(),
                 proposal.getPrice(),
                 proposal.getStatus(),
-                proposal.getCreatedAt());
+                proposal.getCreatedAt(),
+                proposal.getComments().stream()
+                        .sorted(Comparator.comparing(ProposalComment::getCreatedAt))
+                        .map(comment -> new ProposalCommentSummary(comment.getText(), comment.getCreatedAt()))
+                        .toList());
     }
 }

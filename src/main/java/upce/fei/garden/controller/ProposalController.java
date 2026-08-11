@@ -14,6 +14,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import upce.fei.garden.dto.proposal.CreateProposalRequest;
 import upce.fei.garden.dto.proposal.ProposalSummary;
+import upce.fei.garden.dto.proposal.RequestChangesRequest;
 import upce.fei.garden.service.ProposalService;
 
 import java.util.List;
@@ -68,11 +69,29 @@ public class ProposalController {
         return ResponseEntity.ok(proposalService.reject(id));
     }
 
-    @Operation(summary = "Odvolání vlastního návrhu zahradníkem (pouze ve stavu Nový)")
+    @Operation(summary = "Odvolání vlastního návrhu zahradníkem (ve stavu Nový nebo Vyžádány úpravy)")
     @PreAuthorize("hasRole('WORKER')")
     @DeleteMapping("/api/proposals/{id}")
     public ResponseEntity<Void> withdraw(@Parameter(description = "Id návrhu") @PathVariable Long id) {
         proposalService.withdraw(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "Žádost vlastníka o úpravu návrhu (pouze ve stavu Nový)")
+    @PreAuthorize("hasRole('OWNER')")
+    @PostMapping("/api/proposals/{id}/request-changes")
+    public ResponseEntity<ProposalSummary> requestChanges(
+            @Parameter(description = "Id návrhu") @PathVariable Long id,
+            @Valid @RequestBody RequestChangesRequest request) {
+        return ResponseEntity.ok(proposalService.requestChanges(id, request));
+    }
+
+    @Operation(summary = "Přepracování vlastního návrhu zahradníkem po žádosti o úpravy")
+    @PreAuthorize("hasRole('WORKER')")
+    @PutMapping("/api/proposals/{id}")
+    public ResponseEntity<ProposalSummary> update(
+            @Parameter(description = "Id návrhu") @PathVariable Long id,
+            @Valid @RequestBody CreateProposalRequest request) {
+        return ResponseEntity.ok(proposalService.update(id, request));
     }
 }

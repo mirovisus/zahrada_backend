@@ -5,6 +5,8 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import upce.fei.garden.dto.dashboard.GardenSummary;
+import upce.fei.garden.dto.review.ReviewResponse;
+import upce.fei.garden.dto.workreport.WorkReportResponse;
 import upce.fei.garden.model.enums.DemandStatus;
 import upce.fei.garden.model.enums.DemandUrgency;
 
@@ -34,4 +36,10 @@ public class DemandDetailResponse {
 
     @Schema(description = "True, pokud na poptávku už existuje alespoň jeden návrh - pak ji nelze upravit ani smazat")
     private boolean hasProposals;
+
+    @Schema(description = "Report zahradníka o dokončených pracích, nebo null, pokud ještě nebyl odeslán")
+    private WorkReportResponse workReport;
+
+    @Schema(description = "Hodnocení zahradníka vlastníkem, nebo null, dokud vlastník práci nepřijme")
+    private ReviewResponse review;
 }

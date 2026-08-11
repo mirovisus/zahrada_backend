@@ -193,6 +193,33 @@ public class DemandService {
     }
 
     /**
+     * Mock-platba poptávky jménem vlastníka – bez jakékoliv integrace na platební bránu rovnou
+     * přepne poptávku ze stavu {@link DemandStatus#SCHVALENA} do {@link DemandStatus#ZAPLACENA}
+     * (mezistav {@link DemandStatus#CEKA_NA_PLATBU} se v tomto přechodu nepoužívá).
+     *
+     * @throws NotFoundException pokud poptávka neexistuje nebo nepatří přihlášenému vlastníkovi
+     * @throws ConflictException pokud poptávka není ve stavu {@link DemandStatus#SCHVALENA}
+     */
+    @Transactional
+    public DemandDetailResponse pay(Long id) {
+        Owner owner = currentUserService.getCurrentOwner();
+        Demand demand = findOwnedDemand(id, owner);
+
+        if (demand.getStatus() != DemandStatus.SCHVALENA) {
+            log.warn("Pokus o zaplacení poptávky mimo stav SCHVALENA: demandId={}, status={}, ownerId={}",
+                    id, demand.getStatus(), owner.getId());
+            throw new ConflictException("Poptávku nelze zaplatit, protože není ve stavu Schválena.");
+        }
+
+        demand.setStatus(DemandStatus.ZAPLACENA);
+        Demand saved = demandRepository.save(demand);
+        log.info("Zaplacena poptávka: id={}, ownerId={}", id, owner.getId());
+
+        boolean hasProposals = proposalRepository.existsByDemandId(id);
+        return DemandMapper.toDetailResponse(saved, hasProposals);
+    }
+
+    /**
      * Vrátí stránkovaný veřejný katalog poptávek pro zahradníky.
      * &lt;p&gt;
      * Katalog vždy obsahuje pouze poptávky ve stavu {@link DemandStatus#NOVA} – to je jediný stav,

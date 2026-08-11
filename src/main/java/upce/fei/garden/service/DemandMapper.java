@@ -65,7 +65,9 @@ final class DemandMapper {
                 demand.getStatus(),
                 demand.getServiceTypes().stream().map(ServiceType::getName).toList(),
                 toGardenSummary(demand.getGarden()),
-                hasProposals);
+                hasProposals,
+                WorkReportMapper.toResponse(demand.getWorkReport()),
+                ReviewMapper.toResponse(demand.getReview()));
     }
 
     static DemandStatisticsResponse toStatistics(DemandWithProposalCount projection) {

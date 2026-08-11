@@ -86,6 +86,13 @@ public class DemandController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "Mock-platba poptávky (bez platební brány, pouze změna stavu na Zaplacena)")
+    @PreAuthorize("hasRole('OWNER')")
+    @PostMapping("/api/demands/{id}/pay")
+    public ResponseEntity<DemandDetailResponse> pay(@Parameter(description = "Id poptávky") @PathVariable Long id) {
+        return ResponseEntity.ok(demandService.pay(id));
+    }
+
     @Operation(summary = "Veřejný katalog poptávek pro zahradníky (filtr podle města, typů služeb a fulltextové hledání)")
     @GetMapping("/api/demands/catalog")
     public ResponseEntity<Page<DemandSummary>> getCatalog(

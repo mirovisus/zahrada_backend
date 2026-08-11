@@ -8,18 +8,22 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import upce.fei.garden.dto.proposal.CreateProposalRequest;
 import upce.fei.garden.dto.proposal.ProposalSummary;
+import upce.fei.garden.dto.proposal.RequestChangesRequest;
 import upce.fei.garden.exception.ConflictException;
 import upce.fei.garden.exception.NotFoundException;
 import upce.fei.garden.model.Demand;
 import upce.fei.garden.model.Owner;
 import upce.fei.garden.model.Proposal;
+import upce.fei.garden.model.ProposalComment;
 import upce.fei.garden.model.Worker;
 import upce.fei.garden.model.enums.DemandStatus;
 import upce.fei.garden.model.enums.ProposalStatus;
 import upce.fei.garden.repository.DemandRepository;
+import upce.fei.garden.repository.ProposalCommentRepository;
 import upce.fei.garden.repository.ProposalRepository;
 import upce.fei.garden.security.CurrentUserService;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -41,6 +45,7 @@ import java.util.List;
 public class ProposalService {
 
     private final ProposalRepository proposalRepository;
+    private final ProposalCommentRepository proposalCommentRepository;
     private final DemandRepository demandRepository;
     private final CurrentUserService currentUserService;
 
@@ -117,7 +122,7 @@ public class ProposalService {
     public ProposalSummary accept(Long proposalId) {
         Owner owner = currentUserService.getCurrentOwner();
         Proposal proposal = findOwnedProposal(proposalId, owner);
-        ensureNovy(proposal, "přijmout");
+        ensureStatus(proposal, "přijmout", ProposalStatus.NOVY);
 
         Demand demand = proposal.getDemand();
         List<Proposal> allProposals = proposalRepository.findAllByDemandId(demand.getId());
@@ -148,7 +153,7 @@ public class ProposalService {
     public ProposalSummary reject(Long proposalId) {
         Owner owner = currentUserService.getCurrentOwner();
         Proposal proposal = findOwnedProposal(proposalId, owner);
-        ensureNovy(proposal, "zamítnout");
+        ensureStatus(proposal, "zamítnout", ProposalStatus.NOVY);
 
         proposal.setStatus(ProposalStatus.ZAMITNUT);
         Proposal saved = proposalRepository.save(proposal);
@@ -160,20 +165,78 @@ public class ProposalService {
     }
 
     /**
-     * Odvolá vlastní návrh zahradníka, pokud je stále ve stavu {@link ProposalStatus#NOVY}.
+     * Odvolá vlastní návrh zahradníka, pokud je ve stavu {@link ProposalStatus#NOVY} nebo
+     * {@link ProposalStatus#UPRAVY_POZADOVANY} – zahradník tak může návrh stáhnout i poté,
+     * co o něm vlastník požádal o úpravy, aniž by musel čekat na jejich vypracování.
      *
      * @throws NotFoundException pokud návrh neexistuje nebo nepatří přihlášenému zahradníkovi
-     * @throws ConflictException pokud návrh není ve stavu {@link ProposalStatus#NOVY}
+     * @throws ConflictException pokud návrh není ve stavu {@link ProposalStatus#NOVY} ani
+     *                           {@link ProposalStatus#UPRAVY_POZADOVANY}
      */
     @Transactional
     public void withdraw(Long proposalId) {
         Worker worker = currentUserService.getCurrentWorker();
         Proposal proposal = proposalRepository.findByIdAndWorkerId(proposalId, worker.getId())
                 .orElseThrow(() -> new NotFoundException("Návrh s id " + proposalId + " nebyl nalezen."));
-        ensureNovy(proposal, "odvolat");
+        ensureStatus(proposal, "odvolat", ProposalStatus.NOVY, ProposalStatus.UPRAVY_POZADOVANY);
 
         proposalRepository.delete(proposal);
         log.info("Odvolán návrh: id={}, workerId={}", proposalId, worker.getId());
+    }
+
+    /**
+     * Požádá jménem vlastníka poptávky o úpravu návrhu – uloží jeho komentář s požadovanými
+     * změnami jako {@link ProposalComment} a přesune návrh do stavu
+     * {@link ProposalStatus#UPRAVY_POZADOVANY}, aby jej zahradník mohl přepracovat přes
+     * {@link #update(Long, CreateProposalRequest)}.
+     *
+     * @throws NotFoundException pokud návrh neexistuje nebo jeho poptávka nepatří přihlášenému vlastníkovi
+     * @throws ConflictException pokud návrh není ve stavu {@link ProposalStatus#NOVY}
+     */
+    @Transactional
+    public ProposalSummary requestChanges(Long proposalId, RequestChangesRequest request) {
+        Owner owner = currentUserService.getCurrentOwner();
+        Proposal proposal = findOwnedProposal(proposalId, owner);
+        ensureStatus(proposal, "požádat o úpravy", ProposalStatus.NOVY);
+
+        ProposalComment comment = new ProposalComment();
+        comment.setProposal(proposal);
+        comment.setAuthor(owner);
+        comment.setText(request.getComment());
+        proposalCommentRepository.save(comment);
+        proposal.getComments().add(comment);
+
+        proposal.setStatus(ProposalStatus.UPRAVY_POZADOVANY);
+        Proposal saved = proposalRepository.save(proposal);
+
+        log.info("Vyžádány úpravy návrhu: id={}, demandId={}, ownerId={}",
+                proposalId, proposal.getDemand().getId(), owner.getId());
+
+        return ProposalMapper.toSummary(saved);
+    }
+
+    /**
+     * Přepracuje vlastní návrh zahradníka poté, co o něj vlastník požádal
+     * ({@link #requestChanges(Long, RequestChangesRequest)}) – aktualizuje cenu a popis a vrátí
+     * návrh zpět do stavu {@link ProposalStatus#NOVY}, aby o něm vlastník mohl znovu rozhodnout.
+     *
+     * @throws NotFoundException pokud návrh neexistuje nebo nepatří přihlášenému zahradníkovi
+     * @throws ConflictException pokud návrh není ve stavu {@link ProposalStatus#UPRAVY_POZADOVANY}
+     */
+    @Transactional
+    public ProposalSummary update(Long proposalId, CreateProposalRequest request) {
+        Worker worker = currentUserService.getCurrentWorker();
+        Proposal proposal = proposalRepository.findByIdAndWorkerId(proposalId, worker.getId())
+                .orElseThrow(() -> new NotFoundException("Návrh s id " + proposalId + " nebyl nalezen."));
+        ensureStatus(proposal, "upravit", ProposalStatus.UPRAVY_POZADOVANY);
+
+        ProposalMapper.updateEntity(proposal, request);
+        proposal.setStatus(ProposalStatus.NOVY);
+        Proposal saved = proposalRepository.save(proposal);
+
+        log.info("Přepracován návrh po žádosti o úpravy: id={}, workerId={}", proposalId, worker.getId());
+
+        return ProposalMapper.toSummary(saved);
     }
 
     private Demand findOwnedDemand(Long demandId, Owner owner) {
@@ -196,11 +259,11 @@ public class ProposalService {
         return proposal;
     }
 
-    private void ensureNovy(Proposal proposal, String action) {
-        if (proposal.getStatus() != ProposalStatus.NOVY) {
-            log.warn("Pokus o {} návrhu mimo stav NOVY: proposalId={}, status={}",
+    private void ensureStatus(Proposal proposal, String action, ProposalStatus... allowedStatuses) {
+        if (Arrays.stream(allowedStatuses).noneMatch(status -> status == proposal.getStatus())) {
+            log.warn("Pokus o {} návrhu v nepovoleném stavu: proposalId={}, status={}",
                     action, proposal.getId(), proposal.getStatus());
-            throw new ConflictException("Návrh nelze " + action + ", protože již není ve stavu Nový.");
+            throw new ConflictException("Návrh nelze " + action + ", protože není ve vyžadovaném stavu.");
         }
     }
 }

@@ -8,6 +8,7 @@ import upce.fei.garden.model.enums.ProposalStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * Přehledová karta návrhu – informace o zahradníkovi, cena a stav návrhu.
@@ -27,6 +28,9 @@ public class ProposalSummary {
     private BigDecimal price;
     private ProposalStatus status;
     private LocalDateTime createdAt;
+
+    @Schema(description = "Komentáře vlastníka k žádostem o úpravu návrhu, seřazené od nejstaršího")
+    private List<ProposalCommentSummary> comments;
     // TODO: Double workerRating
     // TODO: int completedOrders
 }
