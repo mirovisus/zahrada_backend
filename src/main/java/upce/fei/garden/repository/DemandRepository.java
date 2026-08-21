@@ -46,7 +46,7 @@ public interface DemandRepository extends JpaRepository<Demand, Long>, JpaSpecif
     /**
      * Vrátí zakázky daného zahradníka - poptávky, u kterých má tento zahradník návrh ve stavu
      * {@link ProposalStatus#SCHVALEN} a poptávka je v jednom ze zadaných stavů (typicky
-     * {@code ZAPLACENA}, {@code PRACE_DOKONCENY}, {@code PRACE_SCHVALENY}).
+     * {@code SCHVALENA}, {@code PRACE_DOKONCENY}, {@code PRACE_SCHVALENY}).
      * <p>
      * Záměrně složitější dotaz - jedním JOIN na {@code proposals} s podmínkou přímo v ON klauzuli
      * (zahradník + stav návrhu) se zároveň získá cena z přijatého návrhu a LEFT JOIN na

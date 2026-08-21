@@ -22,11 +22,11 @@ import upce.fei.garden.security.CurrentUserService;
 import java.util.List;
 
 /**
- * Kabinet zahradníka pro realizaci zakázek – přehled zaplacených poptávek s jeho přijatým návrhem
+ * Kabinet zahradníka pro realizaci zakázek – přehled schválených poptávek s jeho přijatým návrhem
  * a odeslání reportu o dokončení prací (BPMN proces 06).
  * <p>
- * Model procesu má jen jeden mezistav mezi platbou a dokončením: {@link DemandStatus#ZAPLACENA}
- * zároveň znamená "zaplaceno, zahradník může pracovat" – žádné tlačítko/stav "zahájit práce"
+ * Model procesu má jen jeden mezistav mezi přijetím návrhu a dokončením: {@link DemandStatus#SCHVALENA}
+ * zároveň znamená "návrh přijat, zahradník může pracovat" – žádné tlačítko/stav "zahájit práce"
  * neexistuje. Jakmile zahradník odešle report, poptávka přejde rovnou do
  * {@link DemandStatus#PRACE_DOKONCENY}.
  * <p>
@@ -40,7 +40,7 @@ import java.util.List;
 public class WorkReportService {
 
     private static final List<DemandStatus> ACTIVE_JOB_STATUSES =
-            List.of(DemandStatus.ZAPLACENA, DemandStatus.PRACE_DOKONCENY, DemandStatus.PRACE_SCHVALENY);
+            List.of(DemandStatus.SCHVALENA, DemandStatus.PRACE_DOKONCENY, DemandStatus.PRACE_SCHVALENY);
 
     private final DemandRepository demandRepository;
     private final ProposalRepository proposalRepository;
@@ -49,7 +49,7 @@ public class WorkReportService {
 
     /**
      * Vrátí zakázky přihlášeného zahradníka – poptávky, na které měl přijatý návrh a jsou už
-     * zaplacené nebo dále v realizaci ({@link #ACTIVE_JOB_STATUSES}).
+     * schválené nebo dále v realizaci ({@link #ACTIVE_JOB_STATUSES}).
      */
     @Transactional(readOnly = true)
     public List<WorkerJobSummary> getMyJobs() {
@@ -63,14 +63,14 @@ public class WorkReportService {
 
     /**
      * Odešle report o dokončených pracích k dané poptávce jménem přihlášeného zahradníka a v rámci
-     * jedné transakce přesune poptávku ze stavu {@link DemandStatus#ZAPLACENA} do
+     * jedné transakce přesune poptávku ze stavu {@link DemandStatus#SCHVALENA} do
      * {@link DemandStatus#PRACE_DOKONCENY}.
      *
      * @throws NotFoundException pokud poptávka neexistuje nebo na ni přihlášený zahradník nemá
      *                           přijatý návrh ({@link ProposalStatus#SCHVALEN})
-     * @throws ConflictException pokud poptávka není ve stavu {@link DemandStatus#ZAPLACENA} –
+     * @throws ConflictException pokud poptávka není ve stavu {@link DemandStatus#SCHVALENA} –
      *                           to zahrnuje i opakované odeslání reportu, protože po prvním
-     *                           odeslání už poptávka ve stavu {@code ZAPLACENA} není
+     *                           odeslání už poptávka ve stavu {@code SCHVALENA} není
      */
     @Transactional
     public WorkReportResponse submitReport(Long demandId, CreateWorkReport request) {
@@ -84,10 +84,10 @@ public class WorkReportService {
             throw new NotFoundException("Poptávka s id " + demandId + " nebyla nalezena.");
         }
 
-        if (demand.getStatus() != DemandStatus.ZAPLACENA) {
-            log.warn("Pokus o odeslání reportu mimo stav ZAPLACENA: demandId={}, status={}, workerId={}",
+        if (demand.getStatus() != DemandStatus.SCHVALENA) {
+            log.warn("Pokus o odeslání reportu mimo stav SCHVALENA: demandId={}, status={}, workerId={}",
                     demandId, demand.getStatus(), worker.getId());
-            throw new ConflictException("Report nelze odeslat, protože poptávka není ve stavu Zaplaceno.");
+            throw new ConflictException("Report nelze odeslat, protože poptávka není ve stavu Schválena.");
         }
 
         WorkReport report = WorkReportMapper.toEntity(request, demand, worker);
