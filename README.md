@@ -145,7 +145,7 @@ Aplikace má dvě role: **`OWNER`** (vlastník zahrady - zadává poptávky, vyb
 | `/api/proposals/my`                        | GET    | ❌ | ❌ | ✅ |
 | `/api/proposals/{id}/accept`, `/reject`    | POST   | ❌ | ✅ | ❌ |
 | `/api/proposals/{id}/request-changes`      | POST   | ❌ | ✅ (jen svůj návrh, ve stavu `NOVY`) | ❌ |
-| `/api/proposals/{id}`                      | DELETE | ❌ | ❌ | ✅ (jen svůj, ve stavu `NOVY`) |
+| `/api/proposals/{id}`                      | DELETE | ❌ | ❌ | ✅ (jen svůj, ve stavech `NOVY` nebo `UPRAVY_POZADOVANY`) |
 | `/api/proposals/{id}`                      | PUT    | ❌ | ❌ | ✅ (jen svůj, ve stavu `UPRAVY_POZADOVANY`) |
 | `/api/worker/jobs`                         | GET    | ❌ | ❌ | ✅ |
 | `/api/demands/{id}/work-report`            | POST   | ❌ | ❌ | ✅ (jen s vlastním přijatým návrhem, ve stavu `SCHVALENA`) |
