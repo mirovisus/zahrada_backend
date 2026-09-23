@@ -1,73 +1,113 @@
+<div align="center">
+
 # Zahrada - backend
 
-REST API pro aplikaci na správu zahrad a poptávek zahradnických prací.
-Spring Boot 4.0.3, Java 17, H2, JWT.
+**Spring Boot REST API for a two-sided marketplace connecting garden owners with independent gardeners.**
 
-## Požadavky
+[Live demo](https://zahrada-frontend.vercel.app) · [Frontend](https://github.com/mirovisus/zahrada_frontend)
 
-- JDK 17
-- Maven (nebo přiložený wrapper `./mvnw`)
+![Java](https://img.shields.io/badge/Java-17-ED8B00?logo=openjdk&logoColor=white)
+![Spring Boot](https://img.shields.io/badge/Spring_Boot-4.0.3-6DB33F?logo=springboot&logoColor=white)
+![H2](https://img.shields.io/badge/H2-file--mode-4169E1)
+![JWT](https://img.shields.io/badge/JWT-auth-FB015B?logo=jsonwebtokens&logoColor=white)
+![Swagger UI](https://img.shields.io/badge/Swagger_UI-OpenAPI-85EA2D?logo=swagger&logoColor=white)
 
-Ověření verze:
+</div>
+
+## What it does
+
+Garden owners post requests for gardening work (lawn mowing, hedge trimming, planting, tree pruning). Gardeners browse a public catalog of open requests and submit bids with a price and short description. The owner reviews the bids, accepts one, and once the accepted gardener finishes the work, they mark it as completed for the owner's approval.
+
+This repository is the API that powers the marketplace: user accounts and JWT authentication, gardens and requests, bids and their lifecycle, and the authorization rules behind every one of those operations. The frontend, [zahrada_frontend](https://github.com/mirovisus/zahrada_frontend), is a separate React application that talks to this API exclusively over REST. Its live demo runs on mocked APIs (MSW) rather than this backend, so it's reachable and predictable without this service running.
+
+## Tech stack
+
+Spring Boot 4.0.3 on Java 17, JPA/Hibernate over an embedded H2 file database, Spring Security with stateless JWT authentication, Bean Validation on request DTOs, a custom exception hierarchy mapped by a global `@RestControllerAdvice`, OpenAPI/Swagger UI for interactive API docs, and JUnit 5 + MockMvc for testing.
+
+## Key backend features
+
+- **Stateless JWT authentication.** `JwtAuthenticationFilter` validates the token from the `Authorization` header and populates the security context before Spring's own `UsernamePasswordAuthenticationFilter` runs. A missing or invalid token doesn't fail the request on the spot - `SecurityConfig`'s authorization rules decide that later, and an unauthenticated request to a protected route gets a 401 from `JwtAuthenticationEntryPoint`. There's no server-side session or token store, so any instance of the API can validate a token on its own.
+- **Layered authorization.** Role checks happen at the route level via `@PreAuthorize` (`hasRole('OWNER')` / `hasRole('WORKER')`); ownership of a specific record - is this my garden, my request, my bid - is checked again in the service layer on every access. A foreign record returns 404, not 403, so a user can't even tell whether someone else's id exists; see `docs/TECHNICKA_DOKUMENTACE.md` (in Czech), Security section, for the full reasoning.
+- **Explicit request lifecycle.** A request moves through `NOVA → SCHVALENA → PRACE_DOKONCENY → PRACE_SCHVALENY` (or `ZRUSENA` at any point), and every transition is validated in the service layer rather than just implied by the UI. The status enum also reserves `CEKA_NA_PLATBU` and `ZAPLACENA` for a future payment step that isn't wired up yet. Once at least one bid exists on a request, editing or deleting it is blocked with HTTP 409.
+- **Cascading bid acceptance.** Accepting a bid is one `@Transactional` service call: the chosen `Proposal` moves to `SCHVALEN`, every other bid on the same request is rejected (`ZAMITNUT`), and the request itself moves to `SCHVALENA` - all atomically, so there's no window where a request ends up with two accepted bids or an inconsistent state if something fails halfway.
+- **Custom exception hierarchy with `@RestControllerAdvice`.** Domain errors (`NotFoundException`, `ConflictException`, `ForbiddenException`, `ValidationException`) are thrown directly from services and mapped by a single global handler into one consistent JSON error shape, instead of leaking stack traces or improvising a response per endpoint.
+- **Embedded H2 in file mode.** No external database to install or configure - the schema is generated on startup (`ddl-auto=update`) and data persists to a local file between restarts, while integration tests run against a separate in-memory H2 instance so they never touch dev data.
+
+## Getting started
+
+Requires JDK 17 (verify with `java -version`) and Maven, or the bundled wrapper `./mvnw`.
 
 ```bash
-java -version
+cp .env.example .env
 ```
 
-## Spuštění
+Replace the placeholder values inside with real secrets, e.g.:
+
+```bash
+openssl rand -base64 32
+```
 
 ```bash
 ./mvnw spring-boot:run
 ```
 
-Aplikace běží na `http://localhost:8080`.
+The app runs at `http://localhost:8080`.
 
-Alternativně sestavení a spuštění jaru:
+Or build and run the jar:
 
 ```bash
 ./mvnw clean package
 java -jar target/zahrada_backend-0.0.1-SNAPSHOT.jar
 ```
 
-## Databáze
+## Configuration
 
-Používá se vestavěná H2 v souborovém režimu - není potřeba nic instalovat.
-Data se ukládají do složky `data/` v kořeni projektu.
+Key properties in `application.properties`:
 
-Webová konzole: `http://localhost:8080/h2-console`
+| Property | Description |
+|----------|--------------|
+| `app.jwt.secret` | Base64 signing key for tokens |
+| `app.jwt.expiration` | Token validity in ms |
+| `spring.datasource.url` | H2 database location |
+| `app.upload.dir` | Directory for uploaded garden photos |
+| `app.upload.max-size` | Maximum uploaded file size |
+| `app.upload.allowed-types` | Allowed `Content-Type` values for uploads |
 
-| Pole     | Hodnota                  |
-|----------|--------------------------|
+`app.jwt.secret` (and its `test`-profile counterpart) is read from the `APP_JWT_SECRET` / `APP_JWT_TEST_SECRET` environment variables - the default value baked into `application.properties` is intentionally just a readable placeholder that must never be used outside local development. The variable template lives in `.env.example`; copy it to `.env` and replace the values with your own (e.g. via `openssl rand -base64 32`).
+
+## Database
+
+Uses embedded H2 in file mode - nothing to install. Data is stored in the `data/` folder at the project root.
+
+Web console: `http://localhost:8080/h2-console`
+
+| Field | Value |
+|-------|-------|
 | JDBC URL | `jdbc:h2:file:./data/garden` |
-| User     | `sa`                     |
-| Password | (prázdné)                |
+| User | `sa` |
+| Password | (empty) |
 
-Přesné hodnoty jsou v `src/main/resources/application.properties`.
+Exact values live in `src/main/resources/application.properties`.
 
-Schéma se generuje automaticky (`ddl-auto=update`).
-Reset databáze - smazat složku a restartovat aplikaci:
+Schema is generated automatically (`ddl-auto=update`).
+Reset the database - delete the folder and restart the app:
 
 ```bash
 rm -rf data/
 ```
 
-## Dokumentace API
+## API documentation
 
 Swagger UI: `http://localhost:8080/swagger-ui/index.html`
 OpenAPI JSON: `http://localhost:8080/v3/api-docs`
 
-## Autentizace
+## Authentication
 
-JWT. Token se získá registrací nebo přihlášením a posílá se v hlavičce
-`Authorization: Bearer <token>`.
+JWT. Obtain a token by registering or logging in, then send it in the `Authorization: Bearer <token>` header.
 
-Veřejné endpointy: `/api/auth/**`, `/api/demands/catalog`, `/api/demands/urgencies`,
-`/api/service-types`, `/uploads/**`, `/swagger-ui/**`, `/v3/api-docs/**`, `/h2-console/**`,
-`/actuator/health`. Vše ostatní vyžaduje platný token (podrobná matice viz
-[Role a přístupová matice](#role-a-přístupová-matice); jak přesně se token ověřuje a jak se
-vynucuje autorizace popisuje `docs/TECHNICKA_DOKUMENTACE.md`, sekce Bezpečnost).
+Public endpoints: `/api/auth/**`, `/api/demands/catalog`, `/api/demands/urgencies`, `/api/service-types`, `/uploads/**`, `/swagger-ui/**`, `/v3/api-docs/**`, `/h2-console/**`, `/actuator/health`. Everything else requires a valid token (see [Access control matrix](#access-control-matrix) for the full breakdown; exactly how the token is verified and authorization enforced is described in `docs/TECHNICKA_DOKUMENTACE.md` (in Czech), Security section).
 
-Registrace:
+Register:
 
 ```bash
 curl -X POST http://localhost:8080/api/auth/register \
@@ -75,7 +115,7 @@ curl -X POST http://localhost:8080/api/auth/register \
   -d '{"firstName":"Eva","lastName":"Dvorakova","role":"WORKER","email":"eva@example.com","password":"heslo1234"}'
 ```
 
-Přihlášení:
+Login:
 
 ```bash
 curl -X POST http://localhost:8080/api/auth/login \
@@ -83,109 +123,79 @@ curl -X POST http://localhost:8080/api/auth/login \
   -d '{"email":"eva@example.com","password":"heslo1234"}'
 ```
 
-Role: `OWNER` (majitel zahrady), `WORKER` (pracovník).
+Roles: `OWNER` (garden owner), `WORKER` (gardener).
 
-## Konfigurace
+## Access control matrix
 
-Klíčové vlastnosti v `application.properties`:
+The app has two roles: **`OWNER`** (garden owner - posts requests, picks a gardener) and **`WORKER`** (gardener - browses the public catalog of requests and submits bids on them).
 
-| Vlastnost                     | Popis                                          |
-|--------------------------------|-------------------------------------------------|
-| `app.jwt.secret`               | Base64 klíč pro podpis tokenů                   |
-| `app.jwt.expiration`           | Platnost tokenu v ms                            |
-| `spring.datasource.url`        | Umístění H2 databáze                            |
-| `app.upload.dir`               | Adresář pro nahrané fotografie zahrad           |
-| `app.upload.max-size`          | Maximální velikost nahrávaného souboru          |
-| `app.upload.allowed-types`     | Povolené `Content-Type` pro nahrávaný soubor     |
+| Endpoint | Method | Unauthorized | OWNER | WORKER |
+|----------|--------|:---:|:---:|:---:|
+| `/api/auth/register`, `/api/auth/login` | POST | ✅ | ✅ | ✅ |
+| `/api/service-types` | GET | ✅ | ✅ | ✅ |
+| `/api/demands/catalog` | GET | ✅ | ✅ | ✅ |
+| `/api/demands/urgencies` | GET | ✅ | ✅ | ✅ |
+| `/uploads/**` | GET | ✅ | ✅ | ✅ |
+| `/api/profile` | GET | ❌ | ✅ | ✅ |
+| `/api/profile/owner` | PUT | ❌ | ✅ | ❌ |
+| `/api/profile/worker` | PUT | ❌ | ❌ | ✅ |
+| `/api/profile` | DELETE | ❌ | ✅ | ✅ |
+| `/api/gardens` (list/detail/create/update/delete) | * | ❌ | ✅ | ❌ |
+| `/api/gardens/{id}/photo` | POST, DELETE | ❌ | ✅ | ❌ |
+| `/api/demands`, `/api/demands/statistics` | GET | ❌ | ✅ | ❌ |
+| `/api/gardens/{gardenId}/demands` | GET, POST | ❌ | ✅ | ❌ |
+| `/api/demands/{id}` | GET | ✅ (only in status `NOVA`) | ✅ (own only) | ✅ (only in status `NOVA` or own bid) |
+| `/api/demands/{id}` | PUT, DELETE | ❌ | ✅ | ❌ |
+| `/api/demands/{demandId}/proposals` | POST | ❌ | ❌ | ✅ |
+| `/api/demands/{demandId}/proposals` | GET | ❌ | ✅ (own request only) | ❌ |
+| `/api/proposals/my` | GET | ❌ | ❌ | ✅ |
+| `/api/proposals/{id}/accept`, `/reject` | POST | ❌ | ✅ | ❌ |
+| `/api/proposals/{id}/request-changes` | POST | ❌ | ✅ (own bid only, in status `NOVY`) | ❌ |
+| `/api/proposals/{id}` | DELETE | ❌ | ❌ | ✅ (own only, in status `NOVY` or `UPRAVY_POZADOVANY`) |
+| `/api/proposals/{id}` | PUT | ❌ | ❌ | ✅ (own only, in status `UPRAVY_POZADOVANY`) |
+| `/api/worker/jobs` | GET | ❌ | ❌ | ✅ |
+| `/api/demands/{id}/work-report` | POST | ❌ | ❌ | ✅ (only with own accepted bid, in status `SCHVALENA`) |
+| `/api/demands/{id}/accept-work` | POST | ❌ | ✅ (own request only, in status `PRACE_DOKONCENY`) | ❌ |
+| `/actuator/health` | GET | ✅ | ✅ | ✅ |
+| `/actuator/info` and other actuator endpoints | GET | ❌ | ✅ | ✅ |
+| `/swagger-ui/**`, `/v3/api-docs/**`, `/h2-console/**` | * | ✅ | ✅ | ✅ |
 
-Klíč `app.jwt.secret` (a jeho testovací protějšek pro profil `test`) se od teď načítá z proměnných
-prostředí `APP_JWT_SECRET` / `APP_JWT_TEST_SECRET` - výchozí hodnota v `application.properties` je
-záměrně jen čitelný placeholder, který se nesmí použít mimo lokální vývoj. Vzor proměnných je v
-`.env.example`; zkopírujte jej do `.env` a hodnoty nahraďte vlastními (např. `openssl rand -base64 32`).
+"✅ (own only)" in the table means ownership of the record is additionally verified in the service layer (`docs/TECHNICKA_DOKUMENTACE.md` (in Czech), Security section, explains why a foreign record returns 404 instead of 403).
 
-## Struktura projektu
+## Testing
 
-```
-upce/fei/garden/
-  config/      - CORS, OpenAPI, request-logging filtr, seed číselníku služeb, statické /uploads/**
-  controller/  - REST endpointy
-  dto/         - přenosové objekty
-  exception/   - vlastní výjimky, globální handler
-  model/       - JPA entity
-  repository/  - přístup k datům
-  security/    - JWT, filtry, konfigurace přístupu
-  service/     - business logika
-  validation/  - vlastní validační pravidla
-```
+Tests run against an in-memory H2 database (`test` profile), so they never touch the file-based database in `data/`. Split into unit tests (`src/test/java/.../service/*Test.java`) and integration tests (`src/test/java/.../controller/*IntegrationTest.java`) - a detailed description of both layers, and why they're split, is in `docs/TECHNICKA_DOKUMENTACE.md` (in Czech), Testing strategy section.
 
-## Role a přístupová matice
-
-Aplikace má dvě role: **`OWNER`** (vlastník zahrady - zadává poptávky, vybírá zahradníka) a
-**`WORKER`** (zahradník - prohlíží veřejný katalog poptávek a podává na ně návrhy).
-
-| Endpoint                                  | Metoda | Neautorizovaný | OWNER | WORKER |
-|--------------------------------------------|--------|:---:|:---:|:---:|
-| `/api/auth/register`, `/api/auth/login`    | POST   | ✅ | ✅ | ✅ |
-| `/api/service-types`                       | GET    | ✅ | ✅ | ✅ |
-| `/api/demands/catalog`                     | GET    | ✅ | ✅ | ✅ |
-| `/api/demands/urgencies`                   | GET    | ✅ | ✅ | ✅ |
-| `/uploads/**`                              | GET    | ✅ | ✅ | ✅ |
-| `/api/profile`                             | GET    | ❌ | ✅ | ✅ |
-| `/api/profile/owner`                       | PUT    | ❌ | ✅ | ❌ |
-| `/api/profile/worker`                      | PUT    | ❌ | ❌ | ✅ |
-| `/api/profile`                             | DELETE | ❌ | ✅ | ✅ |
-| `/api/gardens` (list/detail/create/update/delete) | *   | ❌ | ✅ | ❌ |
-| `/api/gardens/{id}/photo`                  | POST, DELETE | ❌ | ✅ | ❌ |
-| `/api/demands`, `/api/demands/statistics`  | GET    | ❌ | ✅ | ❌ |
-| `/api/gardens/{gardenId}/demands`          | GET, POST | ❌ | ✅ | ❌ |
-| `/api/demands/{id}`                        | GET    | ✅ (jen stav `NOVA`) | ✅ (jen svá) | ✅ (jen stav `NOVA` nebo vlastní návrh) |
-| `/api/demands/{id}`                        | PUT, DELETE | ❌ | ✅ | ❌ |
-| `/api/demands/{demandId}/proposals`        | POST   | ❌ | ❌ | ✅ |
-| `/api/demands/{demandId}/proposals`        | GET    | ❌ | ✅ (jen svá poptávka) | ❌ |
-| `/api/proposals/my`                        | GET    | ❌ | ❌ | ✅ |
-| `/api/proposals/{id}/accept`, `/reject`    | POST   | ❌ | ✅ | ❌ |
-| `/api/proposals/{id}/request-changes`      | POST   | ❌ | ✅ (jen svůj návrh, ve stavu `NOVY`) | ❌ |
-| `/api/proposals/{id}`                      | DELETE | ❌ | ❌ | ✅ (jen svůj, ve stavech `NOVY` nebo `UPRAVY_POZADOVANY`) |
-| `/api/proposals/{id}`                      | PUT    | ❌ | ❌ | ✅ (jen svůj, ve stavu `UPRAVY_POZADOVANY`) |
-| `/api/worker/jobs`                         | GET    | ❌ | ❌ | ✅ |
-| `/api/demands/{id}/work-report`            | POST   | ❌ | ❌ | ✅ (jen s vlastním přijatým návrhem, ve stavu `SCHVALENA`) |
-| `/api/demands/{id}/accept-work`            | POST   | ❌ | ✅ (jen svá poptávka, ve stavu `PRACE_DOKONCENY`) | ❌ |
-| `/actuator/health`                         | GET    | ✅ | ✅ | ✅ |
-| `/actuator/info` a ostatní actuator        | GET    | ❌ | ✅ | ✅ |
-| `/swagger-ui/**`, `/v3/api-docs/**`, `/h2-console/**` | *  | ✅ | ✅ | ✅ |
-
-"✅ (jen svá/svůj)" v tabulce znamená, že vlastnictví záznamu se navíc ověřuje v servisní vrstvě
-(proč cizí záznam vrací 404 místo 403 vysvětluje `docs/TECHNICKA_DOKUMENTACE.md`, sekce Bezpečnost).
-
-## Testování
-
-Testy běží proti in-memory H2 databázi (profil `test`), takže se nikdy nedotknou souborové
-databáze ve `data/`. Rozdělené jsou na unit testy (`src/test/java/.../service/*Test.java`) a
-integrační testy (`src/test/java/.../controller/*IntegrationTest.java`) - podrobný popis obou
-vrstev a proč jsou rozdělené je v `docs/TECHNICKA_DOKUMENTACE.md`, sekce Testovací strategie.
-
-Spuštění celé sady:
+Run the whole suite:
 
 ```bash
 ./mvnw test
 ```
 
-Spuštění jedné třídy nebo metody:
+Run a single class or method:
 
 ```bash
 ./mvnw test -Dtest=DemandServiceTest
 ./mvnw test -Dtest=DemandServiceTest#someMethodName
 ```
 
-> Třídy testů musí končit na `Test`/`Tests`, ne na `IT` - Maven Surefire (spouštěný fází `test`)
-> jinak takové testy přeskočí.
+> Test classes must end in `Test`/`Tests`, not `IT` - Maven Surefire (bound to the `test` phase) otherwise skips them.
 
-## TODO / budoucí úpravy
+## Project structure
 
-- Zkontrolovat, zda je vlastní validátor `@FutureOrToday` a jeho implementace mrtvý kód. Pokud
-  není nikde použit, odstranit jej a všechny odkazy na něj v projektu.
+```
+upce/fei/garden/
+  config/      - CORS, OpenAPI, request-logging filter, service-type lookup seed, static /uploads/**
+  controller/  - REST endpoints
+  dto/         - data transfer objects
+  exception/   - custom exceptions, global handler
+  model/       - JPA entities
+  repository/  - data access
+  security/    - JWT, filters, access configuration
+  service/     - business logic
+  validation/  - custom validation rules
+```
 
-## Technická dokumentace
+## About the project
 
-Podrobný popis architektury, bezpečnostního modelu, validace, zpracování chyb a testovací
-strategie je v [`docs/TECHNICKA_DOKUMENTACE.md`](docs/TECHNICKA_DOKUMENTACE.md).
+Built as a semester project for KIT/BRPW2 (Ročníkový projekt II) at the Faculty of Electrical Engineering and Informatics, University of Pardubice, supervised by Ing. Lukáš Čegan, Ph.D.
