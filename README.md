@@ -27,7 +27,7 @@ Spring Boot 4.0.3 on Java 17, JPA/Hibernate over an embedded H2 file database, S
 ## Key backend features
 
 - **Stateless JWT authentication.** `JwtAuthenticationFilter` validates the token from the `Authorization` header and populates the security context before Spring's own `UsernamePasswordAuthenticationFilter` runs. There's no server-side session or token store, so any instance of the API can validate a token on its own.
-- **Layered authorization.** Role checks happen at the route level via `@PreAuthorize` (`hasRole('OWNER')` / `hasRole('WORKER')`); ownership of a specific record - is this my garden, my request, my bid - is checked again in the service layer on every access. A foreign record returns 404, not 403; see `docs/TECHNICKA_DOKUMENTACE.md` (in Czech), Security section, for the full reasoning.
+- **Layered authorization.** Role checks happen at the route level via `@PreAuthorize` (`hasRole('OWNER')` / `hasRole('WORKER')`); ownership of a specific record - is this my garden, my request, my bid - is checked again in the service layer on every access. A foreign record returns 404, not 403; see `docs/TECHNICKA_DOKUMENTACE.md`, Security section, for the full reasoning.
 - **Explicit request lifecycle.** A request moves through `NOVA → SCHVALENA → PRACE_DOKONCENY → PRACE_SCHVALENY` (or `ZRUSENA` at any point), and every transition is validated in the service layer rather than just implied by the UI. Once at least one bid exists on a request, editing or deleting it is blocked with HTTP 409.
 - **Cascading bid acceptance.** Accepting a bid is one `@Transactional` service call: the chosen `Proposal` moves to `SCHVALEN`, every other bid on the same request is rejected (`ZAMITNUT`), and the request itself moves to `SCHVALENA` - all atomically, so there's no window where a request ends up with two accepted bids or an inconsistent state if something fails halfway.
 - **Custom exception hierarchy with `@RestControllerAdvice`.** Domain errors (`NotFoundException`, `ConflictException`, `ForbiddenException`, `ValidationException`) are thrown directly from services and mapped by a single global handler into one consistent JSON error shape.
@@ -131,11 +131,11 @@ The app has two roles: **`OWNER`** (garden owner - posts requests, picks a garde
 | `/actuator/info` and other actuator endpoints | GET | ❌ | ✅ | ✅ |
 | `/swagger-ui/**`, `/v3/api-docs/**`, `/h2-console/**` | * | ✅ | ✅ | ✅ |
 
-"✅ (own only)" in the table means ownership of the record is additionally verified in the service layer (`docs/TECHNICKA_DOKUMENTACE.md` (in Czech), Security section, explains why a foreign record returns 404 instead of 403).
+"✅ (own only)" in the table means ownership of the record is additionally verified in the service layer (`docs/TECHNICKA_DOKUMENTACE.md`, Security section, explains why a foreign record returns 404 instead of 403).
 
 ## Testing
 
-Tests run against an in-memory H2 database (`test` profile), so they never touch the file-based database in `data/`. Split into unit tests (`src/test/java/.../service/*Test.java`) and integration tests (`src/test/java/.../controller/*IntegrationTest.java`) - a detailed description of both layers, and why they're split, is in `docs/TECHNICKA_DOKUMENTACE.md` (in Czech), Testing strategy section.
+Tests run against an in-memory H2 database (`test` profile), so they never touch the file-based database in `data/`. Split into unit tests (`src/test/java/.../service/*Test.java`) and integration tests (`src/test/java/.../controller/*IntegrationTest.java`) - a detailed description of both layers, and why they're split, is in `docs/TECHNICKA_DOKUMENTACE.md`, Testing strategy section.
 
 Run the whole suite:
 

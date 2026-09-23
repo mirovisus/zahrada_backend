@@ -1,114 +1,117 @@
-# Technická dokumentace - Zahrada (backend)
+# Technical Documentation - Zahrada (backend)
 
-## 1. Účel aplikace
+## 1. Purpose
 
-Zahrada je REST API pro webovou/mobilní aplikaci, která propojuje **vlastníky zahrad** s
-**zahradníky**. Vlastník zahrady zadá poptávku (jaké práce potřebuje a s jakou naléhavostí),
-zahradníci na ni mohou podat návrh (cenová nabídka a popis), vlastník si vybere jeden z návrhů a
-schválí ho - ostatní návrhy se automaticky zamítnou. Aplikace dále eviduje profily obou rolí,
-zahrady vlastníka (včetně fotografie) a číselník typů zahradnických služeb.
+Zahrada is a REST API for a web/mobile application that connects **garden owners** with
+**gardeners**. A garden owner posts a request (what work is needed and how urgent it is),
+gardeners can submit a bid on it (a price offer and a short description), the owner picks one bid
+and approves it - the other bids are automatically rejected. The application also tracks profiles
+for both roles, the owner's gardens (including a photo), and a lookup table of gardening service
+types.
 
-Cílem backendu je poskytnout bezpečné, dobře zdokumentované a otestované REST API, které
-frontend (samostatný projekt) volá přes JSON přes HTTP.
+The goal of the backend is to provide a secure, well-documented, and well-tested REST API that the
+frontend (a separate project) calls over JSON via HTTP.
 
-## 2. Použité technologie
+## 2. Tech stack
 
-| Vrstva | Technologie | Proč zvoleno |
+| Layer | Technology | Why chosen |
 |---|---|---|
-| Jazyk | Java 17 | moderní LTS verze vhodná pro Spring Boot 4 |
-| Backend | Spring Boot 4.0.3 | rychlé vytváření REST API a správná podpora pro Java 17 |
-| API a bezpečnost | Spring MVC, Spring Security, JWT | standardní řešení pro REST endpointy, autentizaci a autorizaci |
-| Data | Spring Data JPA + Hibernate, H2 | jednoduchá práce s databází bez nutnosti samostatné instalace |
-| Validace | Bean Validation + vlastní pravidla | snadná validace vstupů na úrovni DTO |
-| Dokumentace | OpenAPI / Swagger | automatická dokumentace API z anotací |
-| Testování | JUnit 5, Mockito, Spring Boot Test | běžný a efektivní stack pro unit i integrační testy |
-| Build | Maven (`./mvnw`) | jednoduché spuštění buildu bez lokální instalace Mavenu |
+| Language | Java 17 | modern LTS version well suited for Spring Boot 4 |
+| Backend | Spring Boot 4.0.3 | fast REST API development with proper support for Java 17 |
+| API & security | Spring MVC, Spring Security, JWT | standard solution for REST endpoints, authentication, and authorization |
+| Data | Spring Data JPA + Hibernate, H2 | simple database work without a separate installation |
+| Validation | Bean Validation + custom rules | straightforward validation of input at the DTO level |
+| Documentation | OpenAPI / Swagger | automatic API documentation generated from annotations |
+| Testing | JUnit 5, Mockito, Spring Boot Test | common and effective stack for both unit and integration tests |
+| Build | Maven (`./mvnw`) | simple builds without a local Maven installation |
 
-## 3. Architektura
+## 3. Architecture
 
-Aplikace je postavena jako klasická vrstvená monolitická architektura:
+The application is built as a classic layered monolithic architecture:
 
 ```
 HTTP request
     |
     v
-Controller (REST, @RestController)      - přijme/vrátí DTO, autorizace @PreAuthorize
+Controller (REST, @RestController)      - accepts/returns DTOs, authorization via @PreAuthorize
     |
     v
-Service (@Service, @Transactional)      - business logika, vlastnictví záznamů, validace
+Service (@Service, @Transactional)      - business logic, record ownership, validation
     |
     v
-Repository (Spring Data JPA)            - dotazy nad databází
+Repository (Spring Data JPA)            - database queries
     |
     v
-Entity (@Entity)                        - JPA mapování na tabulky
+Entity (@Entity)                        - JPA mapping to tables
 ```
 
-Každá vrstva zná jen tu bezprostředně pod sebou - controller nikdy nevolá repository přímo a
-nikdy nepracuje s entitou.
+Each layer only knows the one directly below it - the controller never calls the repository
+directly and never works with an entity.
 
-Balíčky (`upce.fei.garden.*`):
+Packages (`upce.fei.garden.*`):
 
-- **`controller`** - REST endpointy, mapování HTTP metod na service volání, autorizace přes
-  `@PreAuthorize`, Swagger anotace (`@Tag`, `@Operation`, `@Parameter`).
-- **`service`** - business logika. Každá doménová oblast (Auth, Garden, Demand, Proposal,
-  Profile, ServiceType) má vlastní service třídu. Vedle toho `FileStorageService` řeší ukládání
-  nahraných souborů na disk (viz [Bezpečnost](#5-bezpečnost)) a je service vrstvě k dispozici
-  jako běžná závislost.
-- **`dto`** - přenosové objekty pro request/response; entity se nikdy nevrací přímo z
-  controlleru ven z aplikace.
-- **`model`** - JPA entity a jejich enum stavy (`DemandStatus`, `ProposalStatus`, `DemandUrgency`,
-  `UserRole`).
-- **`repository`** - rozhraní `JpaRepository`/`JpaSpecificationExecutor` s odvozenými i
-  vlastními (`@Query`) dotazy.
-- **`security`** - JWT filtr a služba, `CurrentUserService` (jednotný přístup k přihlášenému
-  uživateli), `SecurityConfig` (pravidla přístupu k jednotlivým cestám).
-- **`exception`** - vlastní výjimky a `GlobalExceptionHandler`, který je centrálně převádí na
-  jednotný formát chybové odpovědi a loguje.
-- **`validation`** - vlastní Bean Validation pravidla (anotace + `ConstraintValidator`).
-- **`config`** - průřezová konfigurace nezávislá na doméně: CORS (`CorsConfig`), OpenAPI
-  (`OpenApiConfig`), logovací filtr (`RequestLoggingFilter`), naplnění číselníku služeb při
-  startu (`ServiceTypeDataInitializer`), registrace H2 konzole mimo testovací profil
-  (`H2ConsoleConfig`) a statický resource handler pro nahrané fotografie (`WebMvcConfig`).
+- **`controller`** - REST endpoints, mapping HTTP methods to service calls, authorization via
+  `@PreAuthorize`, Swagger annotations (`@Tag`, `@Operation`, `@Parameter`).
+- **`service`** - business logic. Each domain area (Auth, Garden, Demand, Proposal, Profile,
+  ServiceType) has its own service class. Alongside those, `FileStorageService` handles storing
+  uploaded files on disk (see [Security](#5-security)) and is available to the service layer as an
+  ordinary dependency.
+- **`dto`** - transfer objects for requests/responses; entities are never returned directly from a
+  controller outside the application.
+- **`model`** - JPA entities and their enum states (`DemandStatus`, `ProposalStatus`,
+  `DemandUrgency`, `UserRole`).
+- **`repository`** - `JpaRepository`/`JpaSpecificationExecutor` interfaces with both derived and
+  custom (`@Query`) queries.
+- **`security`** - the JWT filter and service, `CurrentUserService` (the uniform way to get the
+  logged-in user), `SecurityConfig` (access rules for individual paths).
+- **`exception`** - custom exceptions and `GlobalExceptionHandler`, which centrally converts them
+  into a single error response format and logs them.
+- **`validation`** - custom Bean Validation rules (annotations + `ConstraintValidator`).
+- **`config`** - cross-cutting, domain-independent configuration: CORS (`CorsConfig`), OpenAPI
+  (`OpenApiConfig`), the logging filter (`RequestLoggingFilter`), seeding the service-type lookup
+  table at startup (`ServiceTypeDataInitializer`), registering the H2 console outside the test
+  profile (`H2ConsoleConfig`), and the static resource handler for uploaded photos
+  (`WebMvcConfig`).
 
-Hlavní doménové oblasti a jejich endpointy: autentizace (`/api/auth`), profil
-(`/api/profile`), zahrady včetně jejich fotografie (`/api/gardens`), poptávky (`/api/demands`,
-veřejný katalog `/api/demands/catalog`, číselník naléhavosti `/api/demands/urgencies`) a návrhy
-zahradníků (`/api/demands/{id}/proposals`, `/api/proposals/**`). Entity `WorkReport`, `Review`,
-`ProposalComment` a `GardenPhoto` jsou v datovém modelu připravené pro navazující etapy vývoje,
-ale zatím nemají REST endpoint (viz [Známá omezení](#11-známá-omezení)).
+Main domain areas and their endpoints: authentication (`/api/auth`), profile (`/api/profile`),
+gardens including their photo (`/api/gardens`), requests (`/api/demands`, the public catalog
+`/api/demands/catalog`, the urgency lookup `/api/demands/urgencies`), and gardeners' bids
+(`/api/demands/{id}/proposals`, `/api/proposals/**`). `WorkReport` and `Review` also have their
+own REST endpoints (`/api/demands/{id}/work-report`, `/api/worker/jobs`, and
+`/api/demands/{id}/accept-work`). Only `ProposalComment` remains without a direct REST endpoint -
+it's created as a side effect of `POST /api/proposals/{id}/request-changes` rather than through
+its own CRUD route (see [Known limitations](#10-known-limitations)).
 
-## 4. Datový model
+## 4. Data model
 
-Klíčové entity a vztahy:
+Key entities and relationships:
 
 ```mermaid
 erDiagram
-    OWNER ||--o{ GARDEN : vlastní
-    GARDEN ||--o{ DEMAND : obsahuje
-    GARDEN ||--o{ GARDEN_PHOTO : má
-    DEMAND }o--o{ SERVICE_TYPE : vyžaduje
-    DEMAND ||--o{ PROPOSAL : přijímá
-    WORKER ||--o{ PROPOSAL : podává
-    PROPOSAL ||--o{ PROPOSAL_COMMENT : má
-    DEMAND ||--o| WORK_REPORT : má
-    WORKER ||--o{ WORK_REPORT : vytváří
-    DEMAND ||--o| REVIEW : má
-    OWNER ||--o{ REVIEW : píše
-    WORKER ||--o{ REVIEW : dostává
+    OWNER ||--o{ GARDEN : owns
+    GARDEN ||--o{ DEMAND : contains
+    DEMAND }o--o{ SERVICE_TYPE : requires
+    DEMAND ||--o{ PROPOSAL : receives
+    WORKER ||--o{ PROPOSAL : submits
+    PROPOSAL ||--o{ PROPOSAL_COMMENT : has
+    DEMAND ||--o| WORK_REPORT : has
+    WORKER ||--o{ WORK_REPORT : creates
+    DEMAND ||--o| REVIEW : has
+    OWNER ||--o{ REVIEW : writes
+    WORKER ||--o{ REVIEW : receives
 ```
 
-`Owner` a `Worker` dědí společné údaje (e-mail, heslo, jméno, telefon, adresa URL avataru, datum
-registrace) z abstraktní entity `User` přes `@Inheritance(strategy = JOINED)` - v databázi tak
-vzniknou tři propojené tabulky (`users`, `owner`, `worker`) spojené primárním klíčem, ale v kódu
-jde o jednu hierarchii tříd. 
+`Owner` and `Worker` inherit shared data (email, password, name, phone, avatar URL, registration
+date) from the abstract `User` entity via `@Inheritance(strategy = JOINED)` - in the database this
+produces three linked tables (`users`, `owner`, `worker`) joined by primary key, but in code it's a
+single class hierarchy.
 
-**Životní cyklus poptávky** (`Demand.status`, enum `DemandStatus`):
+**Request lifecycle** (`Demand.status`, enum `DemandStatus`):
 
 ```mermaid
 stateDiagram-v2
     [*] --> NOVA
-    NOVA --> SCHVALENA : přijetí návrhu
+    NOVA --> SCHVALENA : bid accepted
     SCHVALENA --> PRACE_DOKONCENY
     PRACE_DOKONCENY --> PRACE_SCHVALENY
     NOVA --> ZRUSENA
@@ -117,115 +120,115 @@ stateDiagram-v2
     ZRUSENA --> [*]
 ```
 
-Do stavu `NOVA` se poptávka dostane vytvořením a v tomto stavu je jediná viditelná ve veřejném
-katalogu pro zahradníky i jediná, na kterou lze podat návrh (`ProposalService#create`). Přechod
-do `SCHVALENA` nastává výhradně přijetím jednoho z návrhů.
+A request reaches `NOVA` on creation, and in this status alone it is visible in the public catalog
+for gardeners and the only one a bid can be submitted on (`ProposalService#create`). The
+transition to `SCHVALENA` happens exclusively by accepting one of the bids.
 
-**Životní cyklus návrhu** (`Proposal.status`, enum `ProposalStatus`):
+**Bid lifecycle** (`Proposal.status`, enum `ProposalStatus`):
 
 ```mermaid
 stateDiagram-v2
     [*] --> NOVY
     NOVY --> SCHVALEN : accept
-    NOVY --> ZAMITNUT : reject / zamítnutí ostatních při accept
-    NOVY --> [*] : withdraw (smazání)
+    NOVY --> ZAMITNUT : reject / auto-rejected when another is accepted
+    NOVY --> [*] : withdraw (delete)
     SCHVALEN --> [*]
     ZAMITNUT --> [*]
 ```
 
-`ProposalService#accept` provede všechny změny najednou v jedné transakci. Pokud je jeden návrh
-přijat, tento návrh se označí jako `SCHVALEN`, všechny ostatní návrhy k téže poptávce se
-zamítnou a sama poptávka přejde do stavu `SCHVALENA`. 
+`ProposalService#accept` makes all the changes at once in a single transaction. When one bid is
+accepted, that bid is marked `SCHVALEN`, every other bid on the same request is rejected, and the
+request itself moves to `SCHVALENA`.
 
-## 5. Bezpečnost
+## 5. Security
 
-Aplikace používá jednoduchý a přehledný model zabezpečení:
+The application uses a simple, straightforward security model:
 
-- Přístup je chráněn pomocí JWT a rolí (`OWNER`, `WORKER`).
-- Klient pošle token v hlavičce `Authorization: Bearer <token>`.
-- `JwtAuthenticationFilter` ověří token, ale samotné rozhodnutí o přístupu dělá až `SecurityConfig`
-a `@PreAuthorize` na controlleru.
-- Veřejné cesty jsou např. registrace, katalog poptávek, seznam typů služeb, uploady,
-  Swagger a health endpoint.
-- Přístup k cizímu záznamu vrací `404` místo `403`, aby se neprozradila existence daného záznamu.
-- Hesla se ukládají jako BCrypt hash a JWT je bezstavové a má omezenou platnost.
-- CORS je povolen jen pro frontend na `http://localhost:5173`.
-- Nahrané fotografie se kontrolují před uložením - zkoumá se jejich typ i obsah, aby se zabránilo
-  zneužití typu uploadu nebo path traversal.
-- `/actuator/health` je veřejný, ostatní actuator endpointy vyžadují autentizaci.
+- Access is protected using JWT and roles (`OWNER`, `WORKER`).
+- The client sends the token in the `Authorization: Bearer <token>` header.
+- `JwtAuthenticationFilter` verifies the token, but the actual access decision is made later by
+  `SecurityConfig` and `@PreAuthorize` on the controller.
+- Public paths include, for example, registration, the request catalog, the list of service
+  types, uploads, Swagger, and the health endpoint.
+- Access to someone else's record returns `404` instead of `403`, so the record's existence isn't
+  revealed.
+- Passwords are stored as a BCrypt hash, and the JWT is stateless with a limited lifetime.
+- CORS is allowed only for the frontend at `http://localhost:5173`.
+- Uploaded photos are checked before being stored - both their declared type and actual content
+  are inspected, to prevent upload-type abuse or path traversal.
+- `/actuator/health` is public; other actuator endpoints require authentication.
 
-## 6. Validace
+## 6. Validation
 
-Aplikace kombinuje tři úrovně validace:
+The application combines three levels of validation:
 
-1. **Standardní Bean Validation** - `@NotBlank`, `@Size`, `@Email`, `@Positive`, `@Pattern` atd.
-   na request DTO, vyhodnocované automaticky přes `@Valid` v controlleru.
-2. **Vlastní deklarativní pravidla** (balíček `validation`, dělený na `validation.rules` -
-   anotace a `validation.validator` - implementace `ConstraintValidator`):
-   - `@ValidCzechPhone` - telefon ve formátu `+420` a devět číslic (mezery volitelné), `null`
-     nebo prázdný řetězec je platný, protože telefon je nepovinný údaj.
-     
-3. **Programová (business) validace** - pravidla, která závisí na stavu souvisejících záznamů
-   v databázi nebo na obsahu binárních dat, ne jen na tvaru jednoho DTO, a proto je nelze
-   vyjádřit deklarativní anotací nad polem. 
-   
-   Příklady: poptávku, ke které už existuje alespoň
-   jeden návrh, nelze upravit ani smazat (`DemandService#ensureNoProposals`, HTTP 409); na
-   poptávku mimo stav `NOVA` nelze podat návrh a jeden zahradník smí na poptávku podat jen jeden
-   návrh (`ProposalService#create`); návrh lze přijmout/zamítnout/odvolat jen ve stavu `NOVY`
-   (`ProposalService#ensureNovy`); nahraný soubor fotografie musí projít kontrolou velikosti,
-   deklarovaného typu i skutečné signatury obsahu (`FileStorageService#store`, viz
-   [Bezpečnost](#5-bezpečnost)). Tato pravidla vyhazují `ConflictException` (409) nebo
-   `ValidationException` (400) a jsou zdokumentovaná Javadocem přímo u dané metody.
+1. **Standard Bean Validation** - `@NotBlank`, `@Size`, `@Email`, `@Positive`, `@Pattern`, etc. on
+   request DTOs, evaluated automatically via `@Valid` in the controller.
+2. **Custom declarative rules** (the `validation` package, split into `validation.rules` -
+   annotations - and `validation.validator` - `ConstraintValidator` implementations):
+   - `@ValidCzechPhone` - a phone number in the format `+420` plus nine digits (spaces optional);
+     `null` or an empty string is valid, since the phone field is optional.
 
-## 7. Zpracování chyb
+3. **Programmatic (business) validation** - rules that depend on the state of related records in
+   the database or on the content of binary data, not just the shape of a single DTO, and
+   therefore can't be expressed as a declarative annotation on a field.
 
-`GlobalExceptionHandler` (`@RestControllerAdvice`) centrálně převádí všechny výjimky na jednotný
-formát odpovědi `ApiError` (`timestamp`, `status`, `error`, `message`, `path`, volitelně
-`fieldErrors`), takže klient nikdy nedostane surový stack trace ani netypizovanou chybu.
+   Examples: a request that already has at least one bid can't be edited or deleted
+   (`DemandService#ensureNoProposals`, HTTP 409); a bid can't be submitted on a request outside
+   status `NOVA`, and a gardener may submit only one bid per request (`ProposalService#create`); a
+   bid can only be accepted/rejected/withdrawn in an allowed status (`ProposalService#ensureStatus`);
+   an uploaded photo file must pass checks on size, declared type, and actual content signature
+   (`FileStorageService#store`, see [Security](#5-security)). These rules throw
+   `ConflictException` (409) or `ValidationException` (400) and are documented in the Javadoc
+   right on the relevant method.
 
-| Výjimka / situace | HTTP status |
+## 7. Error handling
+
+`GlobalExceptionHandler` (`@RestControllerAdvice`) centrally converts every exception into a
+single `ApiError` response format (`timestamp`, `status`, `error`, `message`, `path`, optionally
+`fieldErrors`), so the client never receives a raw stack trace or an untyped error.
+
+| Exception / situation | HTTP status |
 |---|---|
 | `NotFoundException` | 404 |
-| `NoResourceFoundException`, `NoHandlerFoundException` (neexistující cesta) | 404 |
-| `AuthenticationException` (neplatné přihlašovací údaje) | 401 |
+| `NoResourceFoundException`, `NoHandlerFoundException` (nonexistent path) | 404 |
+| `AuthenticationException` (invalid credentials) | 401 |
 | `ForbiddenException` | 403 |
-| `AccessDeniedException` (zamítnutí ze Spring Security, např. `@PreAuthorize`) | 403 |
+| `AccessDeniedException` (denied by Spring Security, e.g. `@PreAuthorize`) | 403 |
 | `ConflictException` | 409 |
-| `ValidationException` (vlastní programová validace) | 400 (s `fieldErrors`) |
-| `MethodArgumentNotValidException` (Bean Validation na `@Valid` DTO) | 400 (s `fieldErrors`) |
-| `HttpMessageNotReadableException` (poškozený/neplatný JSON) | 400 |
-| `MaxUploadSizeExceededException` (soubor větší než `spring.servlet.multipart.max-file-size`) | 400 |
-| `HttpRequestMethodNotSupportedException` (nepodporovaná HTTP metoda na dané cestě) | 405 |
-| cokoliv jiné (`Exception`) | 500 |
+| `ValidationException` (custom programmatic validation) | 400 (with `fieldErrors`) |
+| `MethodArgumentNotValidException` (Bean Validation on a `@Valid` DTO) | 400 (with `fieldErrors`) |
+| `HttpMessageNotReadableException` (malformed/invalid JSON) | 400 |
+| `MaxUploadSizeExceededException` (file larger than `spring.servlet.multipart.max-file-size`) | 400 |
+| `HttpRequestMethodNotSupportedException` (unsupported HTTP method on a given path) | 405 |
+| anything else (`Exception`) | 500 |
 
-## 8. Logování a monitoring
+## 8. Logging and monitoring
 
-- Aplikace používá SLF4J/Logback. Hlavní logger je `upce.fei.garden`.
-- Důležité akce se logují na úrovni `INFO` (registrace, vytvoření nebo změna dat, upload souboru,
-  přijetí nebo zamítnutí návrhu).
-- Neoprávněné akce nebo porušení pravidel se logují jako `WARN`.
-- `RequestLoggingFilter` zaznamenává každý request na `/api/**` s metodou, cestou, stavem a
-  dobou zpracování. Neukládá hlavičky ani tělo požadavku.
-- `/actuator/health` je veřejný a umožňuje jednoduché monitorování stavu aplikace.
+- The application uses SLF4J/Logback. The main logger is `upce.fei.garden`.
+- Important actions are logged at `INFO` level (registration, creating or changing data, file
+  upload, accepting or rejecting a bid).
+- Unauthorized actions or rule violations are logged as `WARN`.
+- `RequestLoggingFilter` records every request to `/api/**` with method, path, status, and
+  processing time. It doesn't store headers or the request body.
+- `/actuator/health` is public and allows simple monitoring of application health.
 
-## 9. Testovací strategie
+## 9. Testing strategy
 
-Projekt má dvě vrstvy testů a používá izolovanou in-memory databázi v testovém profilu.
+The project has two test layers and uses an isolated in-memory database in the test profile.
 
-- **Unit testy** pokrývají business logiku service vrstvy. Testují hlavní scénáře i chyby.
-- **Integrační testy** ověřují celý tok přes HTTP, Spring Security, controller, service a databázi.
-- Kromě toho existuje jednoduchý smoke test, který ověřuje, že se aplikace správně spustí.
-- Testy jsou pojmenované podle konvence `*Test` nebo `*Tests`, aby je Maven spustil správně.
-- Podrobnosti o spuštění testů jsou v `README.md`.
+- **Unit tests** cover the business logic of the service layer. They test both the main scenarios
+  and error cases.
+- **Integration tests** verify the whole flow over HTTP, through Spring Security, the controller,
+  the service, and the database.
+- There is also a simple smoke test that verifies the application starts up correctly.
+- Tests are named following the `*Test` or `*Tests` convention so Maven runs them correctly.
+- Details on running the tests are in `README.md`.
 
-## 10. Známá omezení
+## 10. Known limitations
 
-- Entity `WorkReport`, `Review` a `ProposalComment` jsou v datovém modelu připravené pro
-  navazující etapy vývoje (evidence provedené práce, hodnocení zahradníka, komentáře k návrhu),
-  ale zatím k nim není žádný REST endpoint - nejsou tedy ani v Swagger dokumentaci.
-- Entita `GardenPhoto` existuje v modelu (viz ER diagram výše) pro budoucí galerii více
-  fotografií na zahradu, ale aktuální implementace nahrávání fotografie (`POST /api/gardens/{id}/photo`)
-  ji nepoužívá - ukládá jen jednu URL do pole `Garden.mainPhotoUrl`.
-- Pole `User.avatarUrl` v entitě existuje, ale nemá vlastní upload endpoint (na rozdíl od
-  `Garden.mainPhotoUrl`) - avatar tak lze zatím nastavit jen nepřímo, ne přes API.
+- `ProposalComment` exists in the data model (feedback from the owner when requesting changes to
+  a bid), but has no direct CRUD REST endpoint of its own yet - it's created only as a side effect
+  of `POST /api/proposals/{id}/request-changes`.
+- The `User.avatarUrl` field exists on the entity but has no dedicated upload endpoint (unlike
+  `Garden.mainPhotoUrl`) - an avatar can currently only be set indirectly, not through the API.
