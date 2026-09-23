@@ -133,6 +133,7 @@ Aplikace má dvě role: **`OWNER`** (vlastník zahrady - zadává poptávky, vyb
 | `/api/profile`                             | GET    | ❌ | ✅ | ✅ |
 | `/api/profile/owner`                       | PUT    | ❌ | ✅ | ❌ |
 | `/api/profile/worker`                      | PUT    | ❌ | ❌ | ✅ |
+| `/api/profile`                             | DELETE | ❌ | ✅ | ✅ |
 | `/api/gardens` (list/detail/create/update/delete) | *   | ❌ | ✅ | ❌ |
 | `/api/gardens/{id}/photo`                  | POST, DELETE | ❌ | ✅ | ❌ |
 | `/api/demands`, `/api/demands/statistics`  | GET    | ❌ | ✅ | ❌ |
@@ -143,7 +144,12 @@ Aplikace má dvě role: **`OWNER`** (vlastník zahrady - zadává poptávky, vyb
 | `/api/demands/{demandId}/proposals`        | GET    | ❌ | ✅ (jen svá poptávka) | ❌ |
 | `/api/proposals/my`                        | GET    | ❌ | ❌ | ✅ |
 | `/api/proposals/{id}/accept`, `/reject`    | POST   | ❌ | ✅ | ❌ |
+| `/api/proposals/{id}/request-changes`      | POST   | ❌ | ✅ (jen svůj návrh, ve stavu `NOVY`) | ❌ |
 | `/api/proposals/{id}`                      | DELETE | ❌ | ❌ | ✅ (jen svůj, ve stavu `NOVY`) |
+| `/api/proposals/{id}`                      | PUT    | ❌ | ❌ | ✅ (jen svůj, ve stavu `UPRAVY_POZADOVANY`) |
+| `/api/worker/jobs`                         | GET    | ❌ | ❌ | ✅ |
+| `/api/demands/{id}/work-report`            | POST   | ❌ | ❌ | ✅ (jen s vlastním přijatým návrhem, ve stavu `SCHVALENA`) |
+| `/api/demands/{id}/accept-work`            | POST   | ❌ | ✅ (jen svá poptávka, ve stavu `PRACE_DOKONCENY`) | ❌ |
 | `/actuator/health`                         | GET    | ✅ | ✅ | ✅ |
 | `/actuator/info` a ostatní actuator        | GET    | ❌ | ✅ | ✅ |
 | `/swagger-ui/**`, `/v3/api-docs/**`, `/h2-console/**` | *  | ✅ | ✅ | ✅ |
