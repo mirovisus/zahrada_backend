@@ -11,10 +11,10 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * Přehledová karta zakázky v kabinetu přihlášeného zahradníka – poptávka, na kterou měl přijatý
- * návrh, a je tedy zaplacená nebo dále v realizaci.
+ * Overview card of a job in the logged-in worker's dashboard - a demand with their accepted
+ * proposal, in status Approved or later.
  */
-@Schema(description = "Přehledová karta zakázky zahradníka - poptávka s jeho přijatým návrhem ve stavu Zaplaceno a dále")
+@Schema(description = "Overview card of a worker's job - a demand with their accepted proposal in status Approved or later")
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor

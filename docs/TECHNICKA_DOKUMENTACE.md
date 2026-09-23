@@ -109,14 +109,10 @@ jde o jednu hierarchii tříd.
 stateDiagram-v2
     [*] --> NOVA
     NOVA --> SCHVALENA : přijetí návrhu
-    SCHVALENA --> CEKA_NA_PLATBU
-    CEKA_NA_PLATBU --> ZAPLACENA
-    ZAPLACENA --> PRACE_DOKONCENY
+    SCHVALENA --> PRACE_DOKONCENY
     PRACE_DOKONCENY --> PRACE_SCHVALENY
     NOVA --> ZRUSENA
     SCHVALENA --> ZRUSENA
-    CEKA_NA_PLATBU --> ZRUSENA
-    ZAPLACENA --> ZRUSENA
     PRACE_SCHVALENY --> [*]
     ZRUSENA --> [*]
 ```

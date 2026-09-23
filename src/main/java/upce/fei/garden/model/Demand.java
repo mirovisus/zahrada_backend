@@ -12,7 +12,7 @@ import upce.fei.garden.model.enums.DemandUrgency;
 
 /**
  * Poptávka – požadavek zákazníka na úpravu zahrady.
- * Prochází životním cyklem: NOVA → SCHVALENA → ZAPLACENA → PRACE_DOKONCENY → PRACE_SCHVALENY (BPMN 04–06).
+ * Lifecycle: NOVA -> SCHVALENA -> PRACE_DOKONCENY -> PRACE_SCHVALENY (BPMN 04-06).
  */
 
 @Entity

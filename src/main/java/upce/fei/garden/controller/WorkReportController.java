@@ -27,14 +27,14 @@ public class WorkReportController {
 
     private final WorkReportService workReportService;
 
-    @Operation(summary = "Zakázky přihlášeného zahradníka - poptávky s jeho přijatým návrhem ve stavu Zaplaceno a dále")
+    @Operation(summary = "Jobs of the logged-in worker - demands with their accepted proposal in status Approved or later")
     @PreAuthorize("hasRole('WORKER')")
     @GetMapping("/api/worker/jobs")
     public ResponseEntity<List<WorkerJobSummary>> getMyJobs() {
         return ResponseEntity.ok(workReportService.getMyJobs());
     }
 
-    @Operation(summary = "Odeslání reportu o dokončených pracích (pouze ve stavu Zaplaceno, poptávka poté přejde do stavu Práce dokončeny)")
+    @Operation(summary = "Submit a work completion report (only while in status Approved; the demand then moves to status Work completed)")
     @PreAuthorize("hasRole('WORKER')")
     @PostMapping("/api/demands/{id}/work-report")
     public ResponseEntity<WorkReportResponse> submitReport(
