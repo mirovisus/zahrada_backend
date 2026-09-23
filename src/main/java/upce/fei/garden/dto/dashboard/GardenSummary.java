@@ -17,6 +17,6 @@ public class GardenSummary {
     private String city;
     private String street;
     private String houseNumber;
-    private String mainPhotoUrl; // TODO: implementovat nahrávání souborů
+    private String mainPhotoUrl;
     // TODO: int activeDemands
 }
