@@ -98,6 +98,11 @@ Klíčové vlastnosti v `application.properties`:
 | `app.upload.max-size`          | Maximální velikost nahrávaného souboru          |
 | `app.upload.allowed-types`     | Povolené `Content-Type` pro nahrávaný soubor     |
 
+Klíč `app.jwt.secret` (a jeho testovací protějšek pro profil `test`) se od teď načítá z proměnných
+prostředí `APP_JWT_SECRET` / `APP_JWT_TEST_SECRET` - výchozí hodnota v `application.properties` je
+záměrně jen čitelný placeholder, který se nesmí použít mimo lokální vývoj. Vzor proměnných je v
+`.env.example`; zkopírujte jej do `.env` a hodnoty nahraďte vlastními (např. `openssl rand -base64 32`).
+
 ## Struktura projektu
 
 ```
